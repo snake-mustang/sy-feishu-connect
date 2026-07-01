@@ -1,0 +1,57 @@
+# sy-feishu-codex-webhook
+# Copy to config.toml and fill in credentials.
+# String fields support ${ENV_NAME} expansion.
+
+[feishu]
+app_id = "${FEISHU_APP_ID}"
+app_secret = "${FEISHU_APP_SECRET}"
+
+# "feishu" for China tenants, "lark" for international tenants.
+domain = "feishu"
+
+# In group chats, require @bot before routing the message to Codex.
+require_mention = true
+
+# Comma-separated allow lists. Use "*" to allow all.
+# Values are Feishu open_id / chat_id.
+allow_users = "*"
+allow_chats = "*"
+
+# Optional status reactions. Set to "" to disable.
+working_emoji = "OnIt"
+done_emoji = "DONE"
+
+[codex]
+# The project/repository directory Codex should operate in.
+work_dir = "."
+
+# Optional CLI override. Usually "codex".
+cli_path = "codex"
+
+# Optional model and reasoning effort. Empty means Codex default config.
+model = ""
+reasoning_effort = ""
+
+# suggest: read-only sandbox
+# auto-edit: workspace-write sandbox, approval_policy=never
+# yolo: dangerously bypass approvals and sandbox
+mode = "suggest"
+
+# Optional CODEX_HOME override, useful when running as a launchd/system user.
+codex_home = ""
+
+# Max wall-clock time for one Codex turn.
+turn_timeout = "30m"
+
+[bridge]
+# Session state persists Codex thread IDs per Feishu chat/user.
+data_dir = "./data"
+
+# If true, messages received while a Codex turn is running are processed in order.
+queue_messages = true
+
+# Max characters per Feishu text message chunk.
+max_reply_chars = 3500
+
+[log]
+level = "info"
