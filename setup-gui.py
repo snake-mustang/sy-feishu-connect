@@ -28,7 +28,8 @@ from pathlib import Path
 
 REPO_URL = "https://github.com/snake-mustang/sy-feishu-connect.git"
 HOME = Path.home()
-DEFAULT_INSTALL_DIR = HOME / "sy-feishu-connect"
+APP_DIR = Path(__file__).resolve().parent
+DEFAULT_INSTALL_DIR = APP_DIR
 REPORT_DIR = HOME / ".sy-feishu-connect"
 REPORT_FILE = REPORT_DIR / "配置检查与飞书待办报告.html"
 
@@ -41,8 +42,13 @@ def toml_quote(value: Path | str) -> str:
     return json.dumps(str(value), ensure_ascii=False)
 
 
-def choose_directory(current: str) -> str:
-    initial = Path(current).expanduser() if current else Path.cwd()
+def choose_directory(current: str, target: str = "") -> str:
+    if current:
+        initial = Path(current).expanduser()
+    elif target == "work_dir":
+        initial = DEFAULT_INSTALL_DIR.parent
+    else:
+        initial = DEFAULT_INSTALL_DIR
     if not initial.exists():
         initial = initial.parent if initial.parent.exists() else Path.cwd()
 
@@ -118,7 +124,8 @@ class Runner:
     def __init__(self, form: dict[str, str]) -> None:
         self.install_dir = Path(form.get("install_dir") or str(DEFAULT_INSTALL_DIR)).expanduser()
         self.project_name = form.get("project_name") or "my-project"
-        self.work_dir = Path(form.get("work_dir") or os.getcwd()).expanduser()
+        raw_work_dir = (form.get("work_dir") or "").strip()
+        self.work_dir = Path(raw_work_dir).expanduser() if raw_work_dir else None
         self.app_id = (form.get("app_id") or "").strip()
         self.app_secret = (form.get("app_secret") or "").strip()
         self.results: list[Result] = []
@@ -198,6 +205,8 @@ class Runner:
             self.results.append(Result("更新源码", "ok" if code == 0 else "fail", out.strip(), "git pull --ff-only"))
             if code != 0:
                 raise RuntimeError("源码更新失败。")
+        elif (self.install_dir / "go.mod").exists() and (self.install_dir / "cmd" / "sy-feishu-codex").exists():
+            self.results.append(Result("使用当前源码目录", "ok", f"安装目录看起来已经是 sy-feishu-connect：{self.install_dir}"))
         elif self.install_dir.exists() and any(self.install_dir.iterdir()):
             self.results.append(Result("下载源码", "fail", f"目录已存在且不是空目录：{self.install_dir}"))
             raise RuntimeError("安装目录已存在且不是空目录。")
@@ -227,10 +236,18 @@ class Runner:
     def _write_config(self) -> None:
         self._append("\n== 4. 生成配置文件 ==\n")
         config_file = self.install_dir / "config.toml"
+        if self.work_dir is None:
+            self.results.append(Result("检查 Codex 要操作的项目目录", "fail", "还没有选择项目目录。请点击页面里“Codex 要操作的项目目录”右侧的 ...，选择你真正想让飞书里的 Codex 操作的业务项目。"))
+            raise RuntimeError("没有选择 Codex 要操作的项目目录。")
         if not self.work_dir.exists():
             self.results.append(Result("检查 work_dir", "fail", f"目录不存在：{self.work_dir}"))
             raise RuntimeError("work_dir 不存在。")
         self.results.append(Result("检查 work_dir", "ok", f"项目目录存在：{self.work_dir}"))
+        try:
+            if self.work_dir.resolve() == self.install_dir.resolve():
+                self.results.append(Result("确认项目目录用途", "warn", "你把 Codex 要操作的项目目录选成了 sy-feishu-connect 工具目录。只有当你想让飞书里的 Codex 修改这个工具源码时，才应该这样选。"))
+        except Exception:
+            pass
 
         if config_file.exists():
             backup = config_file.with_suffix(".toml.bak." + _dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -377,7 +394,7 @@ async function chooseDir(targetId) {{
   const input = document.getElementById(targetId);
   const current = input ? input.value : "";
   try {{
-    const res = await fetch("/choose-dir?current=" + encodeURIComponent(current));
+    const res = await fetch("/choose-dir?target=" + encodeURIComponent(targetId) + "&current=" + encodeURIComponent(current));
     const data = await res.json();
     if (data && data.path && input) {{
       input.value = data.path;
@@ -421,23 +438,23 @@ def home_page() -> str:
   </aside>
   <section class="panel">
     <h2>先填这 5 项</h2>
-    <p class="note">新手重点确认：Codex 项目目录、飞书 App ID、飞书 App Secret。安装目录默认也能用。</p>
+    <p class="note">安装目录是 sy-feishu-connect 工具放在哪里；Codex 要操作的项目目录，是你希望飞书里的 Codex 去查看、修改、运行的业务项目。两者通常不是同一个目录。</p>
     <form method="post" action="/run">
       <label>安装目录</label>
       <div class="path-row">
         <input id="install_dir" name="install_dir" value="{html.escape(str(DEFAULT_INSTALL_DIR))}">
         <button class="pick" type="button" onclick="chooseDir('install_dir')" title="选择安装目录">...</button>
       </div>
-      <p class="hint">工具会在这里下载/更新源码，并生成 bin/sy-feishu-codex。</p>
+      <p class="hint">这是 sy-feishu-connect 工具自己的目录，通常不用改。里面会生成 config.toml 和 bin/sy-feishu-codex。</p>
       <label>项目名称</label>
       <input name="project_name" value="my-project">
       <p class="hint">只是报告里显示用，默认 my-project 即可。</p>
-      <label>Codex 项目目录</label>
+      <label>Codex 要操作的项目目录</label>
       <div class="path-row">
-        <input id="work_dir" name="work_dir" value="{html.escape(os.getcwd())}">
-        <button class="pick" type="button" onclick="chooseDir('work_dir')" title="选择 Codex 项目目录">...</button>
+        <input id="work_dir" name="work_dir" value="" placeholder="请选择你的业务项目，比如 /Users/you/code/my-app">
+        <button class="pick" type="button" onclick="chooseDir('work_dir')" title="选择 Codex 要操作的项目目录">...</button>
       </div>
-      <p class="hint">Codex 会读写这个目录，请填你的真实代码项目路径。</p>
+      <p class="hint">飞书里发给 Codex 的任务，会在这个目录里执行。不要选 sy-feishu-connect，除非你就是想让 Codex 修改这个工具本身。</p>
       <label>飞书 App ID</label>
       <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
       <p class="hint">飞书开放平台 -> 应用后台 -> 凭据与基础信息。</p>
@@ -459,8 +476,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
             return
         if self.path.startswith("/choose-dir"):
-            current = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("current", [""])[0]
-            chosen = choose_directory(current)
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            current = query.get("current", [""])[0]
+            target = query.get("target", [""])[0]
+            chosen = choose_directory(current, target)
             self._send_json({"path": chosen or ""})
             return
         self._send_html(home_page())

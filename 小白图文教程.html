@@ -328,6 +328,7 @@
           <pre><code>macOS：双击仓库根目录里的 双击打开配置工具.command
 Windows：双击仓库根目录里的 双击打开配置工具.bat
 浏览器会自动打开：http://127.0.0.1:随机端口/</code></pre>
+          <div class="callout ok"><b>目录怎么选：</b>安装目录是 <code>sy-feishu-connect</code> 工具自己的目录，通常不用改；<b>Codex 要操作的项目目录</b> 是你希望飞书里的 Codex 去查看、修改、运行的业务项目，例如 <code>/Users/you/code/my-web-app</code>。不要选 <code>sy-feishu-connect</code>，除非你就是想让 Codex 修改这个工具本身。</div>
           <div class="callout warn">不要把双击入口单独拖到桌面或上一层目录运行。它旁边需要有 <code>setup-gui.py</code>。如果看到 <code>can't open file ... setup-gui.py</code>，说明双击入口放错位置了，请进入完整的 <code>sy-feishu-connect</code> 文件夹再双击。</div>
           <div class="callout warn">工具不能替你登录飞书后台，也不能替你点击飞书权限。飞书后台的配置还是要手动做。</div>
           <div class="diagram">
@@ -358,11 +359,11 @@ Windows：双击仓库根目录里的 双击打开配置工具.bat
         <section id="manual-feishu">
           <h2>2. 飞书后台必须手动做的 5 件事</h2>
           <div class="step-list">
-            <div class="step"><div><b>创建企业自建应用</b>打开 <a href="https://open.feishu.cn/">飞书开放平台</a>，进入开发者后台，创建应用，名称建议填 <code>Codex 助手</code>。</div></div>
-            <div class="step"><div><b>启用机器人</b>路径：应用后台 ->「应用能力」->「机器人」。启用后设置头像和名称。</div></div>
-            <div class="step"><div><b>复制 App ID 和 App Secret</b>路径：应用后台 ->「凭据与基础信息」。这两个值要填进配置文件。</div></div>
-            <div class="step"><div><b>添加权限和事件</b>权限、事件、回调都要添加，添加后还要发布应用。</div></div>
-            <div class="step"><div><b>配置底部自定义栏</b>可选，但推荐配置 4 个菜单组，用户更容易上手。</div></div>
+            <div class="step"><div><b>创建企业自建应用</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，创建企业自建应用，名称建议填 <code>Codex 助手</code>。</div></div>
+            <div class="step"><div><b>启用机器人</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「应用能力」->「机器人」。启用后设置头像和名称。</div></div>
+            <div class="step"><div><b>复制 App ID 和 App Secret</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「凭据与基础信息」。这两个值要填进配置工具。</div></div>
+            <div class="step"><div><b>添加权限、事件和回调</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，配置权限管理、事件与回调；订阅方式选长连接，改完后记得发布应用。</div></div>
+            <div class="step"><div><b>配置底部自定义栏</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用能力 -> 机器人 -> 机器人自定义菜单。推荐配置 4 个菜单组。</div></div>
           </div>
           <div class="diagram">
             <svg viewBox="0 0 900 310" role="img" aria-label="飞书后台操作路线图">
@@ -549,7 +550,7 @@ bin\sy-feishu-codex.exe -config config.toml</code></pre>
             <div class="check">Codex CLI 本机能正常运行</div>
             <div class="check">git、go、make 能运行</div>
             <div class="check">sy-feishu-codex 已编译成功</div>
-            <div class="check">work_dir 是真实项目路径</div>
+            <div class="check">Codex 要操作的项目目录是你的业务项目</div>
             <div class="check">飞书应用已启用机器人</div>
             <div class="check">权限已添加并发布</div>
             <div class="check">事件 im.message.receive_v1 已添加</div>
