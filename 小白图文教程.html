@@ -408,6 +408,20 @@ domain = "feishu"</code></pre>
         <section id="permissions">
           <h2>5. 权限和事件照着填</h2>
           <h3>权限管理里添加</h3>
+          <p>更简单的方式：在「权限管理」点击「批量处理」->「批量导入」，直接粘贴下面这段 JSON。</p>
+          <pre><code>{
+  "scopes": {
+    "tenant": [
+      "contact:user.base:readonly",
+      "im:message.group_at_msg:readonly",
+      "im:message.p2p_msg:readonly",
+      "im:message.group_msg",
+      "im:message:send_as_bot"
+    ],
+    "user": []
+  }
+}</code></pre>
+          <div class="callout warn"><code>im:message.group_msg</code> 是敏感权限。如果你只想让群聊 @ 机器人时触发，可以删掉这一行后再导入。</div>
           <p>第一次配置先添加必选权限。可选权限后面需要时再加，尤其是敏感权限不要一上来就申请。</p>
           <h3>必选权限</h3>
           <table>

@@ -286,6 +286,21 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
 {result_table(results)}
 <section class="panel">
   <h2>飞书权限和事件</h2>
+  <h3>批量导入权限</h3>
+  <p>在飞书后台「权限管理」点击「批量处理」->「批量导入」，直接粘贴：</p>
+  <pre>{
+  "scopes": {
+    "tenant": [
+      "contact:user.base:readonly",
+      "im:message.group_at_msg:readonly",
+      "im:message.p2p_msg:readonly",
+      "im:message.group_msg",
+      "im:message:send_as_bot"
+    ],
+    "user": []
+  }
+}</pre>
+  <p><code>im:message.group_msg</code> 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。</p>
   <h3>必选权限</h3>
   <table>
     <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>

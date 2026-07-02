@@ -110,6 +110,27 @@ domain = "feishu"
 
 进入「权限管理」，添加并申请发布以下权限。
 
+### 推荐：批量导入权限
+
+在飞书后台「权限管理」里，点击「批量处理」->「批量导入」，直接粘贴下面这段 JSON：
+
+```json
+{
+  "scopes": {
+    "tenant": [
+      "contact:user.base:readonly",
+      "im:message.group_at_msg:readonly",
+      "im:message.p2p_msg:readonly",
+      "im:message.group_msg",
+      "im:message:send_as_bot"
+    ],
+    "user": []
+  }
+}
+```
+
+`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。
+
 ### 必选权限
 
 | 权限名称 | 权限标识 | 用途 |

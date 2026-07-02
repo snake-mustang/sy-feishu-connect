@@ -70,13 +70,32 @@ sy-feishu-connect start
 
 1. 启用机器人能力。
 2. 在「凭据与基础信息」复制 `App ID` 和 `App Secret`。
-3. 在「权限管理」添加消息权限并发布。
+3. 在「权限管理」用批量导入添加消息权限并发布。
 4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1`。
 5. 在「机器人自定义菜单」配置底部自定义栏。
 
 更小白的图文步骤见 [使用教程.md](./使用教程.md) 和 [小白图文教程.html](./小白图文教程.html)。
 
 ## 推荐权限
+
+在飞书后台「权限管理」里，点击「批量处理」->「批量导入」，直接粘贴：
+
+```json
+{
+  "scopes": {
+    "tenant": [
+      "contact:user.base:readonly",
+      "im:message.group_at_msg:readonly",
+      "im:message.p2p_msg:readonly",
+      "im:message.group_msg",
+      "im:message:send_as_bot"
+    ],
+    "user": []
+  }
+}
+```
+
+`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。
 
 必选：
 
