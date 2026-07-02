@@ -6,20 +6,22 @@
 
 如果你不熟悉命令行，下载仓库后按这个顺序来：
 
-第一次配置时，先打开完整的 `sy-feishu-connect` 文件夹，再双击根目录里的：
+第一次配置时，先打开完整的 `sy-feishu-connect` 文件夹，再按你的系统双击：
 
 ```text
-双击打开配置工具.command
+macOS：双击打开配置工具.command
+Windows：双击打开配置工具.bat
 ```
 
-它会启动本地网页配置向导，并自动打开浏览器页面。这个向导会帮你检查 Codex、Git、Go、Make，编译程序，生成 `config.toml`，并在结束后自动打开「配置检查与飞书待办报告」。
+它会启动本地网页配置向导，并自动打开浏览器页面。安装目录和 Codex 项目目录右侧都有 `...` 按钮，可以直接选择文件夹。这个向导会帮你检查 Codex、Git、Go，编译程序，生成 `config.toml`，并在结束后自动打开「配置检查与飞书待办报告」。
 
-注意：不要把 `双击打开配置工具.command` 单独拖到别的目录运行。它需要和 `setup-gui.py` 在同一个项目文件夹里；如果放错位置，脚本会尝试自动寻找 `sy-feishu-connect/setup-gui.py`，找不到时会给出提示。
+注意：不要把双击入口单独拖到别的目录运行。它需要和 `setup-gui.py` 在同一个项目文件夹里；如果放错位置，脚本会尝试自动寻找 `sy-feishu-connect/setup-gui.py`，找不到时会给出提示。
 
-以后每天启动机器人时，双击根目录里的：
+以后每天启动机器人时，按系统双击根目录里的：
 
 ```text
-双击启动机器人.command
+macOS：双击启动机器人.command
+Windows：双击启动机器人.bat
 ```
 
 启动后会出现一个终端窗口。不要关闭它；窗口关闭后，飞书机器人就会停止。
@@ -92,6 +94,13 @@ mode = "suggest"
 ```bash
 make build
 ./bin/sy-feishu-codex -config config.toml
+```
+
+Windows 命令行：
+
+```bat
+go build -o bin\sy-feishu-codex.exe .\cmd\sy-feishu-codex
+bin\sy-feishu-codex.exe -config config.toml
 ```
 
 开发运行：

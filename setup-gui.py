@@ -16,6 +16,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import traceback
 import urllib.parse
@@ -30,6 +31,75 @@ HOME = Path.home()
 DEFAULT_INSTALL_DIR = HOME / "sy-feishu-connect"
 REPORT_DIR = HOME / ".sy-feishu-connect"
 REPORT_FILE = REPORT_DIR / "配置检查与飞书待办报告.html"
+
+
+def binary_name() -> str:
+    return "sy-feishu-codex.exe" if os.name == "nt" else "sy-feishu-codex"
+
+
+def toml_quote(value: Path | str) -> str:
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def choose_directory(current: str) -> str:
+    initial = Path(current).expanduser() if current else Path.cwd()
+    if not initial.exists():
+        initial = initial.parent if initial.parent.exists() else Path.cwd()
+
+    if sys.platform == "darwin":
+        script = (
+            'POSIX path of (choose folder with prompt "选择文件夹" '
+            f'default location POSIX file {json.dumps(str(initial))})'
+        )
+        try:
+            proc = subprocess.run(["osascript", "-e", script], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120)
+            return proc.stdout.strip() if proc.returncode == 0 else ""
+        except Exception:
+            return ""
+
+    if os.name == "nt":
+        ps = f"""
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = '选择文件夹'
+$dialog.SelectedPath = {json.dumps(str(initial))}
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  Write-Output $dialog.SelectedPath
+}}
+"""
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-STA", "-Command", ps],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=120,
+            )
+            return proc.stdout.strip() if proc.returncode == 0 else ""
+        except Exception:
+            return ""
+
+    for cmd in (["zenity", "--file-selection", "--directory", "--filename", str(initial)], ["kdialog", "--getexistingdirectory", str(initial)]):
+        if shutil.which(cmd[0]):
+            try:
+                proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120)
+                return proc.stdout.strip() if proc.returncode == 0 else ""
+            except Exception:
+                pass
+
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        chosen = filedialog.askdirectory(initialdir=str(initial), title="选择文件夹")
+        root.destroy()
+        return chosen or ""
+    except Exception:
+        return ""
 
 
 @dataclass
@@ -112,8 +182,12 @@ class Runner:
         self._append("\n== 1. 检查本机环境 ==\n")
         self._check_one("git", "请先安装 Git：https://git-scm.com/", ["git", "--version"])
         self._check_one("go", "请先安装 Go 1.25+：https://go.dev/dl/", ["go", "version"])
-        self._check_one("make", "macOS 可执行：xcode-select --install", ["make", "--version"])
         self._check_one("codex", "请先安装并登录 Codex CLI，确保终端能运行 codex。", ["codex", "--version"])
+        if shutil.which("make"):
+            self._check_one("make", "可选：用于执行 make build。", ["make", "--version"])
+        else:
+            self.results.append(Result("检查 make", "warn", "未找到 make。没关系，配置工具会自动改用 go build 编译，Windows 用户通常不需要额外安装 make。"))
+            self._append("⚠️ 未找到 make，将使用 go build 直接编译。\n")
         if any(r.status == "fail" and r.name.startswith("检查 ") for r in self.results):
             raise RuntimeError("环境检查未通过，请先安装缺失工具。")
 
@@ -136,12 +210,18 @@ class Runner:
 
     def _build_project(self) -> None:
         self._append("\n== 3. 编译程序 ==\n")
-        code, out = self._run_cmd(["make", "build"], cwd=self.install_dir, timeout=600)
-        binary = self.install_dir / "bin" / "sy-feishu-codex"
-        if code == 0 and binary.exists():
-            self.results.append(Result("编译 sy-feishu-codex", "ok", f"已生成：{binary}", "make build"))
+        bin_dir = self.install_dir / "bin"
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        binary = bin_dir / binary_name()
+        if os.name != "nt" and shutil.which("make"):
+            cmd = ["make", "build"]
         else:
-            self.results.append(Result("编译 sy-feishu-codex", "fail", out.strip(), "make build"))
+            cmd = ["go", "build", "-o", str(binary), "./cmd/sy-feishu-codex"]
+        code, out = self._run_cmd(cmd, cwd=self.install_dir, timeout=600)
+        if code == 0 and binary.exists():
+            self.results.append(Result("编译 sy-feishu-codex", "ok", f"已生成：{binary}", " ".join(cmd)))
+        else:
+            self.results.append(Result("编译 sy-feishu-codex", "fail", out.strip(), " ".join(cmd)))
             raise RuntimeError("编译失败。")
 
     def _write_config(self) -> None:
@@ -161,8 +241,8 @@ class Runner:
         content = f'''# Generated by sy-feishu-connect 配置向导
 
 [feishu]
-app_id = "{self.app_id}"
-app_secret = "{self.app_secret}"
+app_id = {toml_quote(self.app_id)}
+app_secret = {toml_quote(self.app_secret)}
 domain = "feishu"
 require_mention = true
 allow_users = "*"
@@ -171,7 +251,7 @@ working_emoji = "OnIt"
 done_emoji = "DONE"
 
 [codex]
-work_dir = "{self.work_dir}"
+work_dir = {toml_quote(self.work_dir)}
 cli_path = "codex"
 model = ""
 reasoning_effort = ""
@@ -180,7 +260,7 @@ codex_home = ""
 turn_timeout = "30m"
 
 [bridge]
-data_dir = "{data_dir}"
+data_dir = {toml_quote(data_dir)}
 queue_messages = true
 max_reply_chars = 3500
 
@@ -239,6 +319,8 @@ def result_table(results: list[Result]) -> str:
 
 def render_report(results: list[Result], logs: list[str], install_dir: Path) -> str:
     generated_at = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    start_file = "双击启动机器人.bat" if os.name == "nt" else "双击启动机器人.command"
+    start_cmd = ".\\bin\\sy-feishu-codex.exe -config config.toml" if os.name == "nt" else "./bin/sy-feishu-codex -config config.toml"
     return page_shell(f"""
 <section class="hero compact">
   <div class="eyebrow">检查报告</div>
@@ -257,9 +339,9 @@ def render_report(results: list[Result], logs: list[str], install_dir: Path) -> 
 </section>
 <section class="panel">
   <h2>下一步</h2>
-  <p>如果失败项是 0，去飞书后台完成黄色待办，然后双击仓库根目录里的 <code>双击启动机器人.command</code>。</p>
+  <p>如果失败项是 0，去飞书后台完成黄色待办，然后双击仓库根目录里的 <code>{html.escape(start_file)}</code>。</p>
   <pre>cd {html.escape(str(install_dir))}
-./bin/sy-feishu-codex -config config.toml</pre>
+{html.escape(start_cmd)}</pre>
 </section>
 <section class="panel"><h2>运行日志</h2><pre class="log">{html.escape(''.join(logs)[-30000:])}</pre></section>
 """)
@@ -281,6 +363,7 @@ def page_shell(body: str) -> str:
 .grid{{display:grid;grid-template-columns:330px 1fr;gap:16px}} .panel{{background:white;border:1px solid #d8e2ee;border-radius:8px;padding:20px;margin-bottom:16px}}
 .steps div,.todo div{{background:#eef4ff;color:#1d4ed8;border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:800}} .todo div{{background:#fff8ed;color:#92400e}}
 label{{display:block;font-weight:800;margin:14px 0 6px}} input{{width:100%;height:44px;border:1px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:15px}} .hint{{margin:5px 0 0;color:#64748b;font-size:13px}}
+.path-row{{display:grid;grid-template-columns:1fr 48px;gap:8px}} .pick{{height:44px;padding:0;border-radius:8px;background:#eef4ff;color:#1d4ed8;font-size:18px}}
 .actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}} button,.primary,.secondary{{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;padding:12px 16px;font-weight:900;text-decoration:none;cursor:pointer}}
 button,.primary{{background:#1f5eff;color:white}} .secondary{{background:#eef4ff;color:#1d4ed8}} .note{{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;color:#166534}}
 .stats{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;max-width:620px}} .stats div{{background:rgba(255,255,255,.14);border-radius:8px;padding:12px}} .stats b{{display:block;font-size:28px}} .stats span{{color:#eaf1ff}}
@@ -289,6 +372,22 @@ pre{{white-space:pre-wrap;margin:0;font-family:"SFMono-Regular",Consolas,monospa
 .menu-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}} .menu-grid div{{border:1px solid #d8e2ee;border-radius:8px;padding:14px;background:#fbfdff}} code{{background:#eef4ff;color:#1d4ed8;padding:2px 5px;border-radius:5px}}
 @media(max-width:860px){{.wrap{{padding:14px}}.grid,.menu-grid,.stats{{grid-template-columns:1fr}}h1{{font-size:28px}}}}
 </style>
+<script>
+async function chooseDir(targetId) {{
+  const input = document.getElementById(targetId);
+  const current = input ? input.value : "";
+  try {{
+    const res = await fetch("/choose-dir?current=" + encodeURIComponent(current));
+    const data = await res.json();
+    if (data && data.path && input) {{
+      input.value = data.path;
+      input.focus();
+    }}
+  }} catch (err) {{
+    alert("没有打开目录选择窗口，请手动填写路径。");
+  }}
+}}
+</script>
 </head>
 <body><main class="wrap">{body}</main></body>
 </html>"""
@@ -325,13 +424,19 @@ def home_page() -> str:
     <p class="note">新手重点确认：Codex 项目目录、飞书 App ID、飞书 App Secret。安装目录默认也能用。</p>
     <form method="post" action="/run">
       <label>安装目录</label>
-      <input name="install_dir" value="{html.escape(str(DEFAULT_INSTALL_DIR))}">
+      <div class="path-row">
+        <input id="install_dir" name="install_dir" value="{html.escape(str(DEFAULT_INSTALL_DIR))}">
+        <button class="pick" type="button" onclick="chooseDir('install_dir')" title="选择安装目录">...</button>
+      </div>
       <p class="hint">工具会在这里下载/更新源码，并生成 bin/sy-feishu-codex。</p>
       <label>项目名称</label>
       <input name="project_name" value="my-project">
       <p class="hint">只是报告里显示用，默认 my-project 即可。</p>
       <label>Codex 项目目录</label>
-      <input name="work_dir" value="{html.escape(os.getcwd())}">
+      <div class="path-row">
+        <input id="work_dir" name="work_dir" value="{html.escape(os.getcwd())}">
+        <button class="pick" type="button" onclick="chooseDir('work_dir')" title="选择 Codex 项目目录">...</button>
+      </div>
       <p class="hint">Codex 会读写这个目录，请填你的真实代码项目路径。</p>
       <label>飞书 App ID</label>
       <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
@@ -352,6 +457,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/health":
             self._send_json({"ok": True})
+            return
+        if self.path.startswith("/choose-dir"):
+            current = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get("current", [""])[0]
+            chosen = choose_directory(current)
+            self._send_json({"path": chosen or ""})
             return
         self._send_html(home_page())
 

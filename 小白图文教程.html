@@ -318,16 +318,17 @@
 
         <section id="auto-tool">
           <h2>1. 第一次：双击配置工具</h2>
-          <p>先打开完整的 <code>sy-feishu-connect</code> 文件夹，根目录里有一个入口：<code>双击打开配置工具.command</code>。第一次使用先双击它，它会启动本地网页配置向导，并帮用户做这些事：</p>
+          <p>先打开完整的 <code>sy-feishu-connect</code> 文件夹。macOS 双击 <code>双击打开配置工具.command</code>，Windows 双击 <code>双击打开配置工具.bat</code>。第一次使用先双击配置工具，它会启动本地网页配置向导，并帮用户做这些事：</p>
           <div class="grid-3">
-            <div class="card"><h3>检查</h3><p>检查 <code>codex</code>、<code>git</code>、<code>go</code>、<code>make</code> 是否可用。</p></div>
-            <div class="card"><h3>下载和编译</h3><p>自动 clone 或更新 <code>sy-feishu-connect</code>，并运行 <code>make build</code>。</p></div>
-            <div class="card"><h3>生成配置</h3><p>引导填写项目路径、App ID、App Secret，自动写入 <code>config.toml</code>。</p></div>
+            <div class="card"><h3>检查</h3><p>检查 <code>codex</code>、<code>git</code>、<code>go</code> 是否可用；有 <code>make</code> 就用，没有也能用 <code>go build</code>。</p></div>
+            <div class="card"><h3>下载和编译</h3><p>自动 clone 或更新 <code>sy-feishu-connect</code>，并编译出可执行文件。</p></div>
+            <div class="card"><h3>生成配置</h3><p>目录右侧有 <code>...</code> 按钮可直接选择文件夹，再填写 App ID、App Secret，自动写入 <code>config.toml</code>。</p></div>
           </div>
           <h3>运行方式</h3>
-          <pre><code>双击仓库根目录里的：双击打开配置工具.command
+          <pre><code>macOS：双击仓库根目录里的 双击打开配置工具.command
+Windows：双击仓库根目录里的 双击打开配置工具.bat
 浏览器会自动打开：http://127.0.0.1:随机端口/</code></pre>
-          <div class="callout warn">不要把 <code>双击打开配置工具.command</code> 单独拖到桌面或上一层目录运行。它旁边需要有 <code>setup-gui.py</code>。如果看到 <code>can't open file ... setup-gui.py</code>，说明双击入口放错位置了，请进入完整的 <code>sy-feishu-connect</code> 文件夹再双击。</div>
+          <div class="callout warn">不要把双击入口单独拖到桌面或上一层目录运行。它旁边需要有 <code>setup-gui.py</code>。如果看到 <code>can't open file ... setup-gui.py</code>，说明双击入口放错位置了，请进入完整的 <code>sy-feishu-connect</code> 文件夹再双击。</div>
           <div class="callout warn">工具不能替你登录飞书后台，也不能替你点击飞书权限。飞书后台的配置还是要手动做。</div>
           <div class="diagram">
             <svg viewBox="0 0 930 260" role="img" aria-label="自动工具能做什么">
@@ -458,12 +459,17 @@ level = "info"</code></pre>
           <div class="grid-2">
             <div class="card">
               <h3>小白启动</h3>
-              <pre><code>双击启动机器人.command</code></pre>
+              <pre><code>macOS：双击启动机器人.command
+Windows：双击启动机器人.bat</code></pre>
               <p>启动后会出现终端窗口，不要关闭它。</p>
             </div>
             <div class="card">
               <h3>命令行启动</h3>
-              <pre><code>./bin/sy-feishu-codex -config config.toml</code></pre>
+              <pre><code>macOS/Linux:
+./bin/sy-feishu-codex -config config.toml
+
+Windows:
+bin\sy-feishu-codex.exe -config config.toml</code></pre>
               <p>适合开发者排查问题。</p>
             </div>
           </div>
