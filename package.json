@@ -7,14 +7,12 @@
     "sy-feishu-connect": "cli/sy-feishu-connect.js"
   },
   "scripts": {
-    "postinstall": "node scripts/postinstall.js",
     "build": "go build -o native/sy-feishu-codex ./cmd/sy-feishu-codex",
     "test": "go test ./...",
     "pack:check": "npm pack --dry-run"
   },
   "files": [
     "cli",
-    "scripts",
     "cmd",
     "internal",
     "docs",
