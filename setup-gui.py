@@ -27,7 +27,8 @@ import traceback
 import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, X, Y, Button, Entry, Frame, Label, StringVar, Text, Tk, filedialog, messagebox
+from tkinter import BOTH, END, LEFT, RIGHT, X, Y, Frame, StringVar, Text, Tk, filedialog, messagebox
+from tkinter import ttk
 
 
 REPO_URL = "https://github.com/snake-mustang/sy-feishu-connect.git"
@@ -57,9 +58,9 @@ class Result:
 class SetupApp:
     def __init__(self) -> None:
         self.root = Tk()
-        self.root.title("sy-feishu-connect 配置向导")
-        self.root.geometry("920x720")
-        self.root.minsize(820, 640)
+        self.root.title("sy-feishu-connect 小白配置向导")
+        self.root.geometry("980x760")
+        self.root.minsize(900, 680)
 
         self.install_dir = StringVar(value=str(DEFAULT_INSTALL_DIR))
         self.project_name = StringVar(value="my-project")
@@ -74,57 +75,109 @@ class SetupApp:
 
     def _build_ui(self) -> None:
         root = self.root
+        root.configure(bg="#f3f6fb")
 
-        header = Frame(root, padx=18, pady=16)
-        header.pack(fill=X)
-        Label(header, text="sy-feishu-connect 配置向导", font=("Arial", 22, "bold")).pack(anchor="w")
-        Label(
-            header,
-            text="这个工具会帮你检查环境、下载源码、编译程序、生成配置，并在结束后自动打开测试报告。",
-            fg="#4b5563",
-            font=("Arial", 13),
-        ).pack(anchor="w", pady=(6, 0))
+        style = ttk.Style(root)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        style.configure("App.TFrame", background="#f3f6fb")
+        style.configure("Panel.TFrame", background="#ffffff", relief="flat")
+        style.configure("Hero.TFrame", background="#1f5eff")
+        style.configure("HeroTitle.TLabel", background="#1f5eff", foreground="#ffffff", font=("Arial", 25, "bold"))
+        style.configure("HeroSub.TLabel", background="#1f5eff", foreground="#eaf1ff", font=("Arial", 13))
+        style.configure("HeroBadge.TLabel", background="#dbeafe", foreground="#1d4ed8", font=("Arial", 12, "bold"), padding=(10, 5))
+        style.configure("Title.TLabel", background="#ffffff", foreground="#172033", font=("Arial", 16, "bold"))
+        style.configure("Body.TLabel", background="#ffffff", foreground="#4b5563", font=("Arial", 12))
+        style.configure("Small.TLabel", background="#ffffff", foreground="#6b7280", font=("Arial", 11))
+        style.configure("Step.TLabel", background="#eef4ff", foreground="#1d4ed8", font=("Arial", 12, "bold"), padding=(10, 8))
+        style.configure("Primary.TButton", font=("Arial", 13, "bold"), padding=(16, 10))
+        style.configure("Secondary.TButton", font=("Arial", 12), padding=(12, 8))
+        style.configure("TEntry", padding=(8, 6), font=("Arial", 12))
 
-        form = Frame(root, padx=18)
-        form.pack(fill=X)
+        outer = ttk.Frame(root, style="App.TFrame", padding=18)
+        outer.pack(fill=BOTH, expand=True)
 
-        self._row(form, "安装目录", self.install_dir, self._choose_install_dir)
-        self._row(form, "项目名称", self.project_name, None)
-        self._row(form, "Codex 项目目录 work_dir", self.work_dir, self._choose_work_dir)
-        self._row(form, "飞书 App ID", self.app_id, None)
-        self._row(form, "飞书 App Secret", self.app_secret, None, secret=True)
+        hero = ttk.Frame(outer, style="Hero.TFrame", padding=(22, 18))
+        hero.pack(fill=X)
+        ttk.Label(hero, text="sy-feishu-connect 小白配置向导", style="HeroTitle.TLabel").pack(anchor="w")
+        ttk.Label(
+            hero,
+            text="第一次只填 3 个信息：项目目录、飞书 App ID、飞书 App Secret。工具会自动检查、编译、生成配置和测试报告。",
+            style="HeroSub.TLabel",
+            wraplength=900,
+        ).pack(anchor="w", pady=(8, 0))
+        badge_row = ttk.Frame(hero, style="Hero.TFrame")
+        badge_row.pack(anchor="w", pady=(14, 0))
+        for badge in ["1 双击打开", "2 填飞书信息", "3 看报告", "4 双击启动机器人"]:
+            ttk.Label(badge_row, text=badge, style="HeroBadge.TLabel").pack(side=LEFT, padx=(0, 8))
 
-        tips = Frame(root, padx=18, pady=8)
-        tips.pack(fill=X)
-        Label(
-            tips,
-            text="提示：App ID / App Secret 在飞书开放平台 -> 应用后台 -> 凭据与基础信息。飞书权限、事件、发布、底部菜单仍需手动配置。",
-            fg="#92400e",
-            wraplength=850,
-            justify=LEFT,
-        ).pack(anchor="w")
+        content = ttk.Frame(outer, style="App.TFrame")
+        content.pack(fill=BOTH, expand=True, pady=(16, 0))
 
-        actions = Frame(root, padx=18, pady=8)
-        actions.pack(fill=X)
-        self.run_button = Button(actions, text="开始检查并配置", command=self._start, height=2, bg="#2563eb", fg="white")
+        left = ttk.Frame(content, style="Panel.TFrame", padding=16)
+        left.pack(side=LEFT, fill=Y)
+        ttk.Label(left, text="这个工具会自动做", style="Title.TLabel").pack(anchor="w", pady=(0, 10))
+        for text in [
+            "1  检查 Codex / Git / Go / Make",
+            "2  下载或更新项目源码",
+            "3  编译 bin/sy-feishu-codex",
+            "4  生成 config.toml 和检查报告",
+        ]:
+            ttk.Label(left, text=text, style="Step.TLabel", width=28).pack(anchor="w", fill=X, pady=5)
+
+        ttk.Label(left, text="飞书后台你再手动做", style="Title.TLabel").pack(anchor="w", pady=(22, 8))
+        manual = [
+            "创建企业自建应用",
+            "启用机器人能力",
+            "添加消息权限并发布",
+            "事件/回调选择长连接",
+            "配置底部自定义栏 4 组",
+        ]
+        for item in manual:
+            ttk.Label(left, text="□ " + item, style="Body.TLabel", wraplength=250).pack(anchor="w", pady=2)
+
+        right = ttk.Frame(content, style="App.TFrame")
+        right.pack(side=RIGHT, fill=BOTH, expand=True, padx=(16, 0))
+
+        form_panel = ttk.Frame(right, style="Panel.TFrame", padding=18)
+        form_panel.pack(fill=X)
+        ttk.Label(form_panel, text="先填这 5 项", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(form_panel, text="新手只需要重点确认：Codex 项目目录、飞书 App ID、飞书 App Secret。安装目录和项目名称默认也能用。", style="Small.TLabel", wraplength=600).pack(anchor="w", pady=(4, 14))
+
+        self._row(form_panel, "安装目录", self.install_dir, self._choose_install_dir, hint="工具会在这里下载/更新源码，并生成 bin/sy-feishu-codex。")
+        self._row(form_panel, "项目名称", self.project_name, None, hint="只是报告里显示用，默认 my-project 即可。")
+        self._row(form_panel, "Codex 项目目录", self.work_dir, self._choose_work_dir, hint="Codex 会读写这个目录，请选择你的真实代码项目。")
+        self._row(form_panel, "飞书 App ID", self.app_id, None, hint="形如 cli_xxxxxxxxxxxxx。")
+        self._row(form_panel, "飞书 App Secret", self.app_secret, None, secret=True, hint="这是密钥，只会写入本机 config.toml。")
+
+        action_panel = ttk.Frame(right, style="Panel.TFrame", padding=14)
+        action_panel.pack(fill=X, pady=(12, 0))
+        self.run_button = ttk.Button(action_panel, text="一键检查、编译并生成配置", command=self._start, style="Primary.TButton")
         self.run_button.pack(side=LEFT)
-        Button(actions, text="打开报告", command=self._open_report, height=2).pack(side=LEFT, padx=10)
-        Button(actions, text="打开配置目录", command=self._open_config_dir, height=2).pack(side=LEFT)
+        ttk.Button(action_panel, text="打开报告", command=self._open_report, style="Secondary.TButton").pack(side=LEFT, padx=10)
+        ttk.Button(action_panel, text="打开安装目录", command=self._open_config_dir, style="Secondary.TButton").pack(side=LEFT)
 
-        log_frame = Frame(root, padx=18, pady=10)
-        log_frame.pack(fill=BOTH, expand=True)
-        Label(log_frame, text="运行日志", font=("Arial", 14, "bold")).pack(anchor="w")
-        self.log_box = Text(log_frame, height=20, wrap="word")
-        self.log_box.pack(fill=BOTH, expand=True, pady=(6, 0))
+        log_panel = ttk.Frame(right, style="Panel.TFrame", padding=14)
+        log_panel.pack(fill=BOTH, expand=True, pady=(12, 0))
+        ttk.Label(log_panel, text="运行日志和结果", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(log_panel, text="完成后会自动打开 HTML 报告。✅ 是通过，❌ 是失败，⚠️ 是需要你去飞书后台手动确认。", style="Small.TLabel").pack(anchor="w", pady=(2, 8))
+        self.log_box = Text(log_panel, height=14, wrap="word", bg="#0f172a", fg="#dbeafe", insertbackground="#ffffff", relief="flat", padx=12, pady=10, font=("Menlo", 12))
+        self.log_box.pack(fill=BOTH, expand=True)
 
-    def _row(self, parent: Frame, label: str, var: StringVar, chooser, secret: bool = False) -> None:
-        row = Frame(parent, pady=5)
-        row.pack(fill=X)
-        Label(row, text=label, width=24, anchor="w").pack(side=LEFT)
-        entry = Entry(row, textvariable=var, show="*" if secret else "", width=72)
-        entry.pack(side=LEFT, fill=X, expand=True)
+    def _row(self, parent: Frame, label: str, var: StringVar, chooser, secret: bool = False, hint: str = "") -> None:
+        row = ttk.Frame(parent, style="Panel.TFrame")
+        row.pack(fill=X, pady=7)
+        ttk.Label(row, text=label, style="Body.TLabel", width=16).pack(side=LEFT, anchor="n", pady=5)
+        field = ttk.Frame(row, style="Panel.TFrame")
+        field.pack(side=LEFT, fill=X, expand=True)
+        entry = ttk.Entry(field, textvariable=var, show="*" if secret else "")
+        entry.pack(fill=X)
+        if hint:
+            ttk.Label(field, text=hint, style="Small.TLabel", wraplength=500).pack(anchor="w", pady=(3, 0))
         if chooser:
-            Button(row, text="选择", command=chooser).pack(side=RIGHT, padx=(8, 0))
+            ttk.Button(row, text="选择", command=chooser, style="Secondary.TButton").pack(side=RIGHT, padx=(10, 0), pady=1)
 
     def _choose_install_dir(self) -> None:
         chosen = filedialog.askdirectory(initialdir=str(Path(self.install_dir.get()).expanduser().parent))
@@ -169,7 +222,7 @@ class SetupApp:
             self._finish("运行失败，已生成报告")
 
     def _finish(self, text: str) -> None:
-        self.root.after(0, lambda: self.run_button.config(state="normal", text="开始检查并配置"))
+        self.root.after(0, lambda: self.run_button.config(state="normal", text="一键检查、编译并生成配置"))
         self.root.after(0, lambda: messagebox.showinfo("sy-feishu-connect", text))
 
     def _append(self, text: str) -> None:

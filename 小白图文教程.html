@@ -409,32 +409,32 @@
         <section id="config">
           <h2>4. 配置文件只需要看懂 3 个值</h2>
           <p>如果你用了半自动工具，它会帮你生成这个配置。如果手动写，大概长这样：</p>
-          <pre><code>language = "zh"
-data_dir = "~/.sy-feishu-connect"
-
-[log]
-level = "info"
-
-[[projects]]
-name = "my-project"
-
-[projects.agent]
-type = "codex"
-
-[projects.agent.options]
-work_dir = "/Users/you/code/my-project"
-mode = "default"
-
-[[projects.platforms]]
-type = "feishu"
-
-[projects.platforms.options]
+          <pre><code>[feishu]
 app_id = "cli_xxxxxxxxxxxxx"
 app_secret = "xxxxxxxxxxxxxxxxxxxxx"
-progress_style = "card"
-enable_feishu_card = true
-thread_isolation = true
-done_emoji = "Done"</code></pre>
+domain = "feishu"
+require_mention = true
+allow_users = "*"
+allow_chats = "*"
+working_emoji = "OnIt"
+done_emoji = "DONE"
+
+[codex]
+work_dir = "/Users/you/code/my-project"
+cli_path = "codex"
+model = ""
+reasoning_effort = ""
+mode = "suggest"
+codex_home = ""
+turn_timeout = "30m"
+
+[bridge]
+data_dir = "./data"
+queue_messages = true
+max_reply_chars = 3500
+
+[log]
+level = "info"</code></pre>
           <div class="diagram">
             <svg viewBox="0 0 900 280" role="img" aria-label="配置文件重点字段">
               <rect x="35" y="35" width="830" height="210" rx="8" fill="#0f172a" stroke="#0f172a"/>

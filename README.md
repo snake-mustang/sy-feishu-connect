@@ -1,4 +1,4 @@
-# sy-feishu-codex-webhook
+# sy-feishu-connect
 
 一个精简的飞书/Lark 到本机 Codex CLI 的远程桥接服务。它参考了 [chenhg5/cc-connect](https://github.com/chenhg5/cc-connect) 的设计目标：把运行在你机器上的 AI Agent 桥接到日常聊天工具里；本项目只保留“飞书消息 -> 本机 Codex -> 飞书回复”这一条线。
 

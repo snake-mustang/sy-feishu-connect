@@ -1,6 +1,6 @@
 # 飞书/Lark 接入指南
 
-本文档说明如何把 `sy-feishu-codex-webhook` 接入飞书，让你通过飞书机器人远程操控本机 Codex CLI。
+本文档说明如何把 `sy-feishu-connect` 接入飞书，让你通过飞书机器人远程操控本机 Codex CLI。
 
 本项目是从 `cc-connect` 思路蒸馏出的单线版本：只支持 **Feishu/Lark WebSocket 长连接 + Codex CLI**，不需要公网 IP、域名或反向代理。
 
@@ -17,7 +17,7 @@
 - 已构建本项目：
 
   ```bash
-  cd /Users/admin/sy/code/sy-feishu-codex-webhook
+  cd /Users/admin/sy/code/sy-feishu-connect
   make build
   ```
 
@@ -30,7 +30,7 @@
 飞书开放平台 WebSocket 长连接
    |
    v
-sy-feishu-codex-webhook
+sy-feishu-connect
    |
    v
 codex exec --json
@@ -128,7 +128,7 @@ App Secret: xxxxxxxxxxxxxxxxxxxx
 复制配置文件：
 
 ```bash
-cd /Users/admin/sy/code/sy-feishu-codex-webhook
+cd /Users/admin/sy/code/sy-feishu-connect
 cp config.example.toml config.toml
 ```
 
