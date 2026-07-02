@@ -50,6 +50,14 @@ sy-feishu-connect setup
 ~/.sy-feishu-connect/config.toml
 ```
 
+其中飞书凭证会写入：
+
+```toml
+[feishu]
+app_id = "cli_xxxxxxxxxxxxx"
+app_secret = "xxxxxxxxxxxxxxxxxxxxx"
+```
+
 飞书后台配置完成后启动：
 
 ```bash
@@ -70,12 +78,27 @@ sy-feishu-connect start
 
 ## 推荐权限
 
-| 权限标识 | 用途 |
-| --- | --- |
-| `im:message.p2p_msg:readonly` | 接收用户发给机器人的单聊消息 |
-| `im:message.group_at_msg:readonly` | 接收群聊里 @机器人的消息 |
-| `im:message:send_as_bot` | 以机器人身份回复消息 |
-| `im:message:reaction` | 可选，给消息添加处理中/完成表情 |
+必选：
+
+| 权限名称 | 权限标识 | 用途 |
+| --- | --- | --- |
+| 读取用户发给机器人的单聊消息 | `im:message.p2p_msg:readonly` | 接收私聊消息 |
+| 获取群组中用户 @ 机器人消息 | `im:message.group_at_msg:readonly` | 接收群聊 @ 消息 |
+| 以应用身份发送群消息 | `im:message:send_as_bot` | 发送回复 |
+
+可选：
+
+| 权限名称 | 权限标识 | 用途 |
+| --- | --- | --- |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 后续对应用户信息 |
+| 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅关闭 @ 要求时需要 |
+| 添加消息表情回复 | `im:message:reaction` | 处理中/完成表情 |
+
+事件配置里添加：
+
+| 事件名称 | 事件标识 | 用途 |
+| --- | --- | --- |
+| 接收消息 | `im.message.receive_v1` | 接收用户发送的消息 |
 
 ## 飞书底部自定义栏推荐
 

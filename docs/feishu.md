@@ -73,6 +73,27 @@ codex exec --json
 2. 复制 `App ID` 和 `App Secret`。
 3. 回到 `sy-feishu-connect setup` 填入。
 
+推荐方式是运行配置向导：
+
+```bash
+sy-feishu-connect setup
+```
+
+它会依次问你「飞书 App ID」和「飞书 App Secret」，填完会自动写入：
+
+```text
+~/.sy-feishu-connect/config.toml
+```
+
+如果你要手动改配置文件，就打开这个文件，把 `[feishu]` 里的两行改成飞书后台复制出来的值：
+
+```toml
+[feishu]
+app_id = "cli_xxxxxxxxxxxxx"
+app_secret = "xxxxxxxxxxxxxxxxxxxxx"
+domain = "feishu"
+```
+
 `App Secret` 不要提交到 Git，也不要发到聊天里。
 
 ## 第三步：启用机器人能力
@@ -89,12 +110,23 @@ codex exec --json
 
 进入「权限管理」，添加并申请发布以下权限。
 
-| 权限标识 | 用途 |
-| --- | --- |
-| `im:message.p2p_msg:readonly` | 接收用户发给机器人的单聊消息 |
-| `im:message.group_at_msg:readonly` | 接收群聊里 @机器人的消息 |
-| `im:message:send_as_bot` | 以机器人身份回复消息 |
-| `im:message:reaction` | 可选，给消息添加处理中/完成表情 |
+### 必选权限
+
+| 权限名称 | 权限标识 | 用途 |
+| --- | --- | --- |
+| 读取用户发给机器人的单聊消息 | `im:message.p2p_msg:readonly` | 接收私聊消息 |
+| 获取群组中用户 @ 机器人消息 | `im:message.group_at_msg:readonly` | 接收群聊里 @ 机器人的消息 |
+| 以应用身份发送群消息 | `im:message:send_as_bot` | 机器人回复用户 |
+
+### 可选权限
+
+| 权限名称 | 权限标识 | 用途 |
+| --- | --- | --- |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 可选，用于后续把用户标识对应到用户信息 |
+| 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅当你关闭 @ 要求、希望读取群内普通消息时申请 |
+| 添加消息表情回复 | `im:message:reaction` | 可选，用于处理中/完成表情 |
+
+当前版本默认只处理私聊和群聊 @ 机器人消息，所以 `im:message.group_msg` 不是必选。它是敏感权限，能不申请就先不申请。
 
 权限变更后需要创建新版本并发布，否则运行时仍可能提示权限不足。
 
@@ -110,9 +142,9 @@ codex exec --json
 
 添加事件：
 
-| 事件标识 | 用途 |
-| --- | --- |
-| `im.message.receive_v1` | 接收用户消息 |
+| 事件名称 | 事件标识 | 用途 |
+| --- | --- | --- |
+| 接收消息 | `im.message.receive_v1` | 接收用户发送给机器人的消息 |
 
 保存后创建版本并发布。
 
