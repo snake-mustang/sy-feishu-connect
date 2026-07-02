@@ -369,7 +369,7 @@ code{{background:#eef4ff;color:#1d4ed8;padding:2px 5px;border-radius:5px}}
   <div class="card"><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
 </div>
 <h2>结论和下一步</h2>
-<p>如果失败项是 0，说明本机自动检查基本通过。⚠️ 是必须去飞书后台手动确认的项目，不代表程序失败。确认后启动：</p>
+<p>如果失败项是 0，说明本机自动检查基本通过。⚠️ 是必须去飞书后台手动确认的项目，不代表程序失败。确认后可以直接双击仓库根目录里的 <code>双击启动机器人.command</code>。也可以用命令行启动：</p>
 <pre>cd {html.escape(str(Path(self.install_dir.get()).expanduser()))}
 ./bin/sy-feishu-codex -config config.toml</pre>
 <h2>运行日志</h2>

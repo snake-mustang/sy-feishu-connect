@@ -270,11 +270,11 @@
     <header>
       <span class="badge">超级小白版 · 图文 + 半自动工具</span>
       <h1>从 0 到 1：用飞书操作本地 Codex</h1>
-      <p class="lead">你只需要做两件事：让工具帮你检查、下载、编译、生成配置；然后去飞书后台完成那些必须手动点的应用权限和机器人菜单。</p>
+      <p class="lead">你只需要做三件事：第一次双击配置工具；去飞书后台完成权限和机器人菜单；以后每天双击启动机器人。</p>
       <div class="hero-cards">
-        <div class="hero-card"><b>能自动做</b>检查 Codex、检查 Git/Go/Make、下载源码、编译、生成配置文件。</div>
+        <div class="hero-card"><b>第一次双击配置</b>检查 Codex、Git/Go/Make、下载源码、编译、生成配置文件。</div>
         <div class="hero-card"><b>必须手动做</b>创建飞书应用、启用机器人、添加权限、发布应用、配置底部菜单。</div>
-        <div class="hero-card"><b>最后效果</b>在飞书单聊或群聊 @机器人，让 Codex 读写你的本地项目。</div>
+        <div class="hero-card"><b>以后双击启动</b>双击“启动机器人”后保持窗口打开，飞书就能调用 Codex。</div>
       </div>
     </header>
 
@@ -317,8 +317,8 @@
         </section>
 
         <section id="auto-tool">
-          <h2>1. 推荐先用半自动工具</h2>
-          <p>我给你准备了一个交互式脚本：<code>双击打开配置工具.command</code>。它会帮用户做这些事：</p>
+          <h2>1. 第一次：双击配置工具</h2>
+          <p>根目录里有一个入口：<code>双击打开配置工具.command</code>。第一次使用先双击它，它会帮用户做这些事：</p>
           <div class="grid-3">
             <div class="card"><h3>检查</h3><p>检查 <code>codex</code>、<code>git</code>、<code>go</code>、<code>make</code> 是否可用。</p></div>
             <div class="card"><h3>下载和编译</h3><p>自动 clone 或更新 <code>sy-feishu-connect</code>，并运行 <code>make build</code>。</p></div>
@@ -452,18 +452,17 @@ done_emoji = "Done"</code></pre>
         </section>
 
         <section id="run">
-          <h2>5. 启动和第一次测试</h2>
+          <h2>5. 以后：双击启动机器人</h2>
           <div class="grid-2">
             <div class="card">
-              <h3>前台启动</h3>
-              <pre><code>./bin/sy-feishu-codex -config config.toml</code></pre>
-              <p>适合第一次测试，窗口不要关。</p>
+              <h3>小白启动</h3>
+              <pre><code>双击启动机器人.command</code></pre>
+              <p>启动后会出现终端窗口，不要关闭它。</p>
             </div>
             <div class="card">
-              <h3>后台运行</h3>
-              <pre><code>当前精简版建议先前台运行：
-./bin/sy-feishu-codex -config config.toml</code></pre>
-              <p>适合长期使用。</p>
+              <h3>命令行启动</h3>
+              <pre><code>./bin/sy-feishu-codex -config config.toml</code></pre>
+              <p>适合开发者排查问题。</p>
             </div>
           </div>
           <h3>在飞书里发什么</h3>
@@ -568,7 +567,7 @@ done_emoji = "Done"</code></pre>
     </main>
 
     <footer>
-      这份 HTML 适合直接打开，也适合复制到飞书文档继续编辑。配套脚本：双击打开配置工具.command。
+      这份 HTML 适合直接打开，也适合复制到飞书文档继续编辑。配套入口：双击打开配置工具.command、双击启动机器人.command。
     </footer>
   </div>
 </body>
