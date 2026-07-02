@@ -8,6 +8,7 @@ type Message struct {
 	SessionKey string
 	MessageID  string
 	ChatID     string
+	ChatType   string
 	UserID     string
 	Text       string
 	ReplyCtx   any

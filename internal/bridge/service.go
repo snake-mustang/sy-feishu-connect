@@ -20,6 +20,7 @@ type Service struct {
 	agent         Agent
 	platform      Platform
 	store         *Store
+	usage         *UsageTracker
 	queueMessages bool
 	mu            sync.Mutex
 	sessions      map[string]*sessionWorker
@@ -43,10 +44,15 @@ func New(opts Options) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
+	usage, err := OpenUsageTracker(opts.DataDir)
+	if err != nil {
+		return nil, err
+	}
 	return &Service{
 		agent:         opts.Agent,
 		platform:      opts.Platform,
 		store:         store,
+		usage:         usage,
 		queueMessages: opts.QueueMessages,
 		sessions:      map[string]*sessionWorker{},
 	}, nil
@@ -81,6 +87,20 @@ func (s *Service) Receive(ctx context.Context, msg Message) {
 	case worker.ch <- msg:
 	default:
 		_ = s.platform.Send(ctx, msg.ReplyCtx, "当前会话排队消息过多，请稍后再试。")
+		if err := s.recordUsage(UsageEvent{
+			Time:       time.Now(),
+			SessionKey: msg.SessionKey,
+			MessageID:  msg.MessageID,
+			ChatID:     msg.ChatID,
+			ChatType:   msg.ChatType,
+			UserID:     msg.UserID,
+			Kind:       "task",
+			Success:    false,
+			TextChars:  len([]rune(msg.Text)),
+			Error:      "queue full",
+		}); err != nil {
+			slog.Warn("bridge: record queue usage failed", "error", err)
+		}
 	}
 }
 
@@ -109,10 +129,34 @@ func (w *sessionWorker) loop() {
 }
 
 func (s *Service) runTurn(ctx context.Context, msg Message) {
+	start := time.Now()
+	success := false
+	replyChars := 0
+	errText := ""
+	defer func() {
+		if err := s.recordUsage(UsageEvent{
+			Time:       start,
+			SessionKey: msg.SessionKey,
+			MessageID:  msg.MessageID,
+			ChatID:     msg.ChatID,
+			ChatType:   msg.ChatType,
+			UserID:     msg.UserID,
+			Kind:       "task",
+			Success:    success,
+			DurationMS: time.Since(start).Milliseconds(),
+			TextChars:  len([]rune(msg.Text)),
+			ReplyChars: replyChars,
+			Error:      errText,
+		}); err != nil {
+			slog.Warn("bridge: record usage failed", "error", err)
+		}
+	}()
+
 	_ = s.platform.ReactWorking(ctx, msg.ReplyCtx)
 	state := s.store.Get(msg.SessionKey)
 	events, err := s.agent.Run(ctx, AgentRequest{SessionID: state.ThreadID, Prompt: msg.Text})
 	if err != nil {
+		errText = err.Error()
 		_ = s.platform.Send(ctx, msg.ReplyCtx, "Codex 启动失败: "+err.Error())
 		return
 	}
@@ -137,6 +181,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 			}
 		case EventError:
 			if event.Err != nil {
+				errText = event.Err.Error()
 				_ = s.platform.Send(ctx, msg.ReplyCtx, "Codex 执行失败: "+event.Err.Error())
 			}
 		}
@@ -145,10 +190,14 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	if final == "" {
 		final = "Codex 已完成，但没有返回文本。"
 	}
+	replyChars = len([]rune(final))
 	if err := s.platform.Send(ctx, msg.ReplyCtx, final); err != nil {
+		errText = err.Error()
 		slog.Error("bridge: send reply failed", "error", err)
+		return
 	}
 	_ = s.platform.ReactDone(ctx, msg.ReplyCtx)
+	success = errText == ""
 }
 
 func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
@@ -157,7 +206,24 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		return false
 	}
 	name, rest, _ := strings.Cut(text, " ")
-	switch strings.ToLower(name) {
+	name = strings.ToLower(name)
+	record := func(success bool) {
+		if err := s.recordUsage(UsageEvent{
+			Time:       time.Now(),
+			SessionKey: msg.SessionKey,
+			MessageID:  msg.MessageID,
+			ChatID:     msg.ChatID,
+			ChatType:   msg.ChatType,
+			UserID:     msg.UserID,
+			Kind:       "command",
+			Command:    name,
+			Success:    success,
+			TextChars:  len([]rune(msg.Text)),
+		}); err != nil {
+			slog.Warn("bridge: record command usage failed", "command", name, "error", err)
+		}
+	}
+	switch name {
 	case "/help", "/start":
 		_ = s.platform.Send(ctx, msg.ReplyCtx, strings.TrimSpace(`飞书 Codex 远程桥接已连接。
 
@@ -167,14 +233,20 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 /new - 为当前聊天开启新的 Codex 会话
 /status - 查看当前会话绑定的 Codex thread_id
 /sessions - 列出最近会话
+/stats - 查看使用统计
+/whoami - 查看你的飞书用户标识
 /help - 显示帮助`))
+		record(true)
 		return true
 	case "/new":
+		ok := true
 		if err := s.store.Reset(msg.SessionKey); err != nil {
+			ok = false
 			_ = s.platform.Send(ctx, msg.ReplyCtx, "重置会话失败: "+err.Error())
 		} else {
 			_ = s.platform.Send(ctx, msg.ReplyCtx, "已为当前聊天开启新的 Codex 会话。")
 		}
+		record(ok)
 		return true
 	case "/status":
 		state := s.store.Get(msg.SessionKey)
@@ -183,11 +255,13 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		} else {
 			_ = s.platform.Send(ctx, msg.ReplyCtx, fmt.Sprintf("当前 Codex thread_id: %s\n更新时间: %s", state.ThreadID, state.UpdatedAt.Format(time.RFC3339)))
 		}
+		record(true)
 		return true
 	case "/sessions":
 		states := s.store.List()
 		if len(states) == 0 {
 			_ = s.platform.Send(ctx, msg.ReplyCtx, "暂无已保存会话。")
+			record(true)
 			return true
 		}
 		var b strings.Builder
@@ -199,16 +273,44 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 			b.WriteString(fmt.Sprintf("%d. %s\n   %s\n   %s\n", i+1, state.Key, state.ThreadID, state.UpdatedAt.Format("2006-01-02 15:04:05")))
 		}
 		_ = s.platform.Send(ctx, msg.ReplyCtx, b.String())
+		record(true)
+		return true
+	case "/stats":
+		_ = rest
+		_ = s.platform.Send(ctx, msg.ReplyCtx, s.usage.Report(10))
+		record(true)
+		return true
+	case "/whoami":
+		_ = rest
+		_ = s.platform.Send(ctx, msg.ReplyCtx, fmt.Sprintf("你的飞书用户标识：%s\n当前聊天：%s\n聊天类型：%s\n\n统计时可以用这个用户标识对应到真实姓名。", fallback(msg.UserID, "(unknown)"), fallback(msg.ChatID, "(unknown)"), fallback(msg.ChatType, "(unknown)")))
+		record(true)
 		return true
 	case "/reset":
 		_ = rest
+		ok := true
 		if err := s.store.Reset(msg.SessionKey); err != nil {
+			ok = false
 			_ = s.platform.Send(ctx, msg.ReplyCtx, "重置会话失败: "+err.Error())
 		} else {
 			_ = s.platform.Send(ctx, msg.ReplyCtx, "当前聊天会话已重置。")
 		}
+		record(ok)
 		return true
 	default:
 		return false
 	}
+}
+
+func (s *Service) recordUsage(event UsageEvent) error {
+	if s.usage == nil {
+		return nil
+	}
+	return s.usage.Record(event)
+}
+
+func fallback(value, def string) string {
+	if strings.TrimSpace(value) == "" {
+		return def
+	}
+	return value
 }

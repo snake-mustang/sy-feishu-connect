@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -56,10 +57,11 @@ func (p *fakePlatform) ReactDone(context.Context, any) error    { return nil }
 func TestRunTurnPersistsSession(t *testing.T) {
 	agent := &fakeAgent{}
 	platform := &fakePlatform{}
+	dataDir := t.TempDir()
 	svc, err := New(Options{
 		Agent:         agent,
 		Platform:      platform,
-		DataDir:       t.TempDir(),
+		DataDir:       dataDir,
 		QueueMessages: false,
 	})
 	if err != nil {
@@ -72,6 +74,13 @@ func TestRunTurnPersistsSession(t *testing.T) {
 	}
 	if len(platform.sent) != 1 || platform.sent[0] != "reply" {
 		t.Fatalf("sent=%#v", platform.sent)
+	}
+	summary, err := os.ReadFile(filepath.Join(dataDir, "usage_summary.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(summary), `"tasks": 1`) {
+		t.Fatalf("usage summary=%s", summary)
 	}
 }
 
@@ -92,6 +101,31 @@ func TestStatusCommand(t *testing.T) {
 		t.Fatal("command not handled")
 	}
 	if len(platform.sent) != 1 || !strings.Contains(platform.sent[0], "thread-x") {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+}
+
+func TestStatsAndWhoamiCommands(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:    &fakeAgent{},
+		Platform: platform,
+		DataDir:  t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", ChatID: "chat-a", ChatType: "group", UserID: "ou_user", Text: "hello"})
+	if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", ChatID: "chat-a", ChatType: "group", UserID: "ou_user", Text: "/stats"}) {
+		t.Fatal("stats command not handled")
+	}
+	if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", ChatID: "chat-a", ChatType: "group", UserID: "ou_user", Text: "/whoami"}) {
+		t.Fatal("whoami command not handled")
+	}
+	platform.mu.Lock()
+	defer platform.mu.Unlock()
+	joined := strings.Join(platform.sent, "\n")
+	if !strings.Contains(joined, "使用统计") || !strings.Contains(joined, "ou_user") || !strings.Contains(joined, "你的飞书用户标识") {
 		t.Fatalf("sent=%#v", platform.sent)
 	}
 }

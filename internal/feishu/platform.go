@@ -183,6 +183,7 @@ func (p *Platform) convertMessage(event *larkim.P2MessageReceiveV1) (bridge.Mess
 		SessionKey: sessionKey,
 		MessageID:  messageID,
 		ChatID:     chatID,
+		ChatType:   chatType,
 		UserID:     userID,
 		Text:       strings.TrimSpace(text),
 		ReplyCtx:   ReplyContext{MessageID: messageID, ChatID: chatID},

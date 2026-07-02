@@ -244,6 +244,8 @@ feishu: bot identified open_id=...
 | `/new` | 当前聊天开启新的 Codex 会话 |
 | `/status` | 查看当前聊天绑定的 Codex `thread_id` |
 | `/sessions` | 列出最近保存的会话 |
+| `/stats` | 查看按飞书用户标识汇总的使用统计 |
+| `/whoami` | 查看当前用户的飞书用户标识，方便统计时对应真人 |
 | `/reset` | 重置当前聊天会话，等同于重新开始 |
 
 普通消息会直接发送给 Codex。
@@ -265,7 +267,18 @@ feishu: bot identified open_id=...
 | 设置 | 模式 `/mode`、模型 `/model`、帮助 `/help` |
 | 显示 | 显示思考 `/display full`、关闭思考 `/display compact`、极简模式 `/display quiet` |
 
-当前精简版已支持 `/help`、`/new`、`/status`、`/sessions`、`/reset`。其余菜单可以先作为推荐预留项，后续补齐命令实现；如果不想放预留项，可以只配置当前已支持的命令。
+当前版本已支持 `/help`、`/new`、`/status`、`/sessions`、`/stats`、`/whoami`、`/reset`。其余菜单可以先作为推荐预留项，后续补齐命令实现；如果不想放预留项，可以只配置当前已支持的命令。
+
+## 使用统计
+
+服务会在本机 `data` 目录保存统计文件：
+
+```text
+usage_events.jsonl   每条消息一行，适合后续导入表格或脚本分析
+usage_summary.json   按用户、群聊、命令汇总后的结果
+```
+
+飞书里发送 `/stats` 可以快速查看 Top 用户、总消息数、成功失败次数。飞书里发送 `/whoami` 可以看到自己的 `open_id`，方便你把统计结果和真实用户对应起来。
 
 ## 白名单配置
 

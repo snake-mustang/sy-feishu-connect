@@ -36,7 +36,7 @@ Windows：双击启动机器人.bat
 - 私聊直接发送任务，群聊默认需要 @机器人。
 - 基于飞书 `open_id` / `chat_id` 的用户和群白名单。
 - 每个飞书聊天保存独立 Codex `thread_id`，支持重启后续聊。
-- 支持 `/new`、`/status`、`/sessions`、`/help` 远程控制命令。
+- 支持 `/new`、`/status`、`/sessions`、`/stats`、`/whoami`、`/help` 远程控制命令。
 - 通过 `codex exec --json` 调用本机 Codex CLI，支持 `suggest`、`auto-edit`、`yolo` 三种权限模式。
 
 ## 准备
@@ -130,7 +130,20 @@ make run
 /new
 /status
 /sessions
+/stats
+/whoami
 ```
+
+## 使用统计
+
+服务会自动把使用记录保存在本机 `data` 目录：
+
+```text
+data/usage_events.jsonl
+data/usage_summary.json
+```
+
+在飞书里发送 `/stats` 可以查看按用户 `open_id` 汇总的使用次数、成功失败和最后使用时间。发送 `/whoami` 可以让用户看到自己的飞书用户标识，方便你把统计里的 `open_id` 对应到真实姓名。
 
 ## 安全建议
 
