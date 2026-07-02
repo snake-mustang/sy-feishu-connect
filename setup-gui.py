@@ -1,34 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-sy-feishu-connect 配置向导
+sy-feishu-connect 小白配置向导
 
-功能：
-1. 检查 codex / git / go / make
-2. 下载或更新 sy-feishu-connect
-3. 编译 make build
-4. 引导填写项目路径、飞书 App ID、App Secret
-5. 生成仓库根目录 config.toml
-6. 生成并自动打开 HTML 测试报告
-
-只依赖 Python 标准库。
+双击根目录的 .command 后，本脚本会启动一个本地网页向导。
+不用 Tk，避免 macOS 上出现空白窗口。
 """
 
 from __future__ import annotations
 
 import datetime as _dt
 import html
+import json
 import os
 import shutil
+import socket
 import subprocess
-import sys
 import threading
 import traceback
+import urllib.parse
 import webbrowser
 from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, X, Y, Frame, StringVar, Text, Tk, filedialog, messagebox
-from tkinter import ttk
 
 
 REPO_URL = "https://github.com/snake-mustang/sy-feishu-connect.git"
@@ -41,165 +35,26 @@ REPORT_FILE = REPORT_DIR / "配置检查与飞书待办报告.html"
 @dataclass
 class Result:
     name: str
-    status: str  # ok / fail / warn / info
+    status: str
     detail: str = ""
     command: str = ""
 
     @property
     def icon(self) -> str:
-        return {
-            "ok": "✅",
-            "fail": "❌",
-            "warn": "⚠️",
-            "info": "ℹ️",
-        }.get(self.status, "ℹ️")
+        return {"ok": "✅", "fail": "❌", "warn": "⚠️", "info": "ℹ️"}.get(self.status, "ℹ️")
 
 
-class SetupApp:
-    def __init__(self) -> None:
-        self.root = Tk()
-        self.root.title("sy-feishu-connect 小白配置向导")
-        self.root.geometry("980x760")
-        self.root.minsize(900, 680)
-
-        self.install_dir = StringVar(value=str(DEFAULT_INSTALL_DIR))
-        self.project_name = StringVar(value="my-project")
-        self.work_dir = StringVar(value=os.getcwd())
-        self.app_id = StringVar(value="")
-        self.app_secret = StringVar(value="")
-
+class Runner:
+    def __init__(self, form: dict[str, str]) -> None:
+        self.install_dir = Path(form.get("install_dir") or str(DEFAULT_INSTALL_DIR)).expanduser()
+        self.project_name = form.get("project_name") or "my-project"
+        self.work_dir = Path(form.get("work_dir") or os.getcwd()).expanduser()
+        self.app_id = (form.get("app_id") or "").strip()
+        self.app_secret = (form.get("app_secret") or "").strip()
         self.results: list[Result] = []
         self.logs: list[str] = []
 
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        root = self.root
-        root.configure(bg="#f3f6fb")
-
-        style = ttk.Style(root)
-        try:
-            style.theme_use("clam")
-        except Exception:
-            pass
-        style.configure("App.TFrame", background="#f3f6fb")
-        style.configure("Panel.TFrame", background="#ffffff", relief="flat")
-        style.configure("Hero.TFrame", background="#1f5eff")
-        style.configure("HeroTitle.TLabel", background="#1f5eff", foreground="#ffffff", font=("Arial", 25, "bold"))
-        style.configure("HeroSub.TLabel", background="#1f5eff", foreground="#eaf1ff", font=("Arial", 13))
-        style.configure("HeroBadge.TLabel", background="#dbeafe", foreground="#1d4ed8", font=("Arial", 12, "bold"), padding=(10, 5))
-        style.configure("Title.TLabel", background="#ffffff", foreground="#172033", font=("Arial", 16, "bold"))
-        style.configure("Body.TLabel", background="#ffffff", foreground="#4b5563", font=("Arial", 12))
-        style.configure("Small.TLabel", background="#ffffff", foreground="#6b7280", font=("Arial", 11))
-        style.configure("Step.TLabel", background="#eef4ff", foreground="#1d4ed8", font=("Arial", 12, "bold"), padding=(10, 8))
-        style.configure("Primary.TButton", font=("Arial", 13, "bold"), padding=(16, 10))
-        style.configure("Secondary.TButton", font=("Arial", 12), padding=(12, 8))
-        style.configure("TEntry", padding=(8, 6), font=("Arial", 12))
-
-        outer = ttk.Frame(root, style="App.TFrame", padding=18)
-        outer.pack(fill=BOTH, expand=True)
-
-        hero = ttk.Frame(outer, style="Hero.TFrame", padding=(22, 18))
-        hero.pack(fill=X)
-        ttk.Label(hero, text="sy-feishu-connect 小白配置向导", style="HeroTitle.TLabel").pack(anchor="w")
-        ttk.Label(
-            hero,
-            text="第一次只填 3 个信息：项目目录、飞书 App ID、飞书 App Secret。工具会自动检查、编译、生成配置和测试报告。",
-            style="HeroSub.TLabel",
-            wraplength=900,
-        ).pack(anchor="w", pady=(8, 0))
-        badge_row = ttk.Frame(hero, style="Hero.TFrame")
-        badge_row.pack(anchor="w", pady=(14, 0))
-        for badge in ["1 双击打开", "2 填飞书信息", "3 看报告", "4 双击启动机器人"]:
-            ttk.Label(badge_row, text=badge, style="HeroBadge.TLabel").pack(side=LEFT, padx=(0, 8))
-
-        content = ttk.Frame(outer, style="App.TFrame")
-        content.pack(fill=BOTH, expand=True, pady=(16, 0))
-
-        left = ttk.Frame(content, style="Panel.TFrame", padding=16)
-        left.pack(side=LEFT, fill=Y)
-        ttk.Label(left, text="这个工具会自动做", style="Title.TLabel").pack(anchor="w", pady=(0, 10))
-        for text in [
-            "1  检查 Codex / Git / Go / Make",
-            "2  下载或更新项目源码",
-            "3  编译 bin/sy-feishu-codex",
-            "4  生成 config.toml 和检查报告",
-        ]:
-            ttk.Label(left, text=text, style="Step.TLabel", width=28).pack(anchor="w", fill=X, pady=5)
-
-        ttk.Label(left, text="飞书后台你再手动做", style="Title.TLabel").pack(anchor="w", pady=(22, 8))
-        manual = [
-            "创建企业自建应用",
-            "启用机器人能力",
-            "添加消息权限并发布",
-            "事件/回调选择长连接",
-            "配置底部自定义栏 4 组",
-        ]
-        for item in manual:
-            ttk.Label(left, text="□ " + item, style="Body.TLabel", wraplength=250).pack(anchor="w", pady=2)
-
-        right = ttk.Frame(content, style="App.TFrame")
-        right.pack(side=RIGHT, fill=BOTH, expand=True, padx=(16, 0))
-
-        form_panel = ttk.Frame(right, style="Panel.TFrame", padding=18)
-        form_panel.pack(fill=X)
-        ttk.Label(form_panel, text="先填这 5 项", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(form_panel, text="新手只需要重点确认：Codex 项目目录、飞书 App ID、飞书 App Secret。安装目录和项目名称默认也能用。", style="Small.TLabel", wraplength=600).pack(anchor="w", pady=(4, 14))
-
-        self._row(form_panel, "安装目录", self.install_dir, self._choose_install_dir, hint="工具会在这里下载/更新源码，并生成 bin/sy-feishu-codex。")
-        self._row(form_panel, "项目名称", self.project_name, None, hint="只是报告里显示用，默认 my-project 即可。")
-        self._row(form_panel, "Codex 项目目录", self.work_dir, self._choose_work_dir, hint="Codex 会读写这个目录，请选择你的真实代码项目。")
-        self._row(form_panel, "飞书 App ID", self.app_id, None, hint="形如 cli_xxxxxxxxxxxxx。")
-        self._row(form_panel, "飞书 App Secret", self.app_secret, None, secret=True, hint="这是密钥，只会写入本机 config.toml。")
-
-        action_panel = ttk.Frame(right, style="Panel.TFrame", padding=14)
-        action_panel.pack(fill=X, pady=(12, 0))
-        self.run_button = ttk.Button(action_panel, text="一键检查、编译并生成配置", command=self._start, style="Primary.TButton")
-        self.run_button.pack(side=LEFT)
-        ttk.Button(action_panel, text="打开报告", command=self._open_report, style="Secondary.TButton").pack(side=LEFT, padx=10)
-        ttk.Button(action_panel, text="打开安装目录", command=self._open_config_dir, style="Secondary.TButton").pack(side=LEFT)
-
-        log_panel = ttk.Frame(right, style="Panel.TFrame", padding=14)
-        log_panel.pack(fill=BOTH, expand=True, pady=(12, 0))
-        ttk.Label(log_panel, text="运行日志和结果", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(log_panel, text="完成后会自动打开 HTML 报告。✅ 是通过，❌ 是失败，⚠️ 是需要你去飞书后台手动确认。", style="Small.TLabel").pack(anchor="w", pady=(2, 8))
-        self.log_box = Text(log_panel, height=14, wrap="word", bg="#0f172a", fg="#dbeafe", insertbackground="#ffffff", relief="flat", padx=12, pady=10, font=("Menlo", 12))
-        self.log_box.pack(fill=BOTH, expand=True)
-
-    def _row(self, parent: Frame, label: str, var: StringVar, chooser, secret: bool = False, hint: str = "") -> None:
-        row = ttk.Frame(parent, style="Panel.TFrame")
-        row.pack(fill=X, pady=7)
-        ttk.Label(row, text=label, style="Body.TLabel", width=16).pack(side=LEFT, anchor="n", pady=5)
-        field = ttk.Frame(row, style="Panel.TFrame")
-        field.pack(side=LEFT, fill=X, expand=True)
-        entry = ttk.Entry(field, textvariable=var, show="*" if secret else "")
-        entry.pack(fill=X)
-        if hint:
-            ttk.Label(field, text=hint, style="Small.TLabel", wraplength=500).pack(anchor="w", pady=(3, 0))
-        if chooser:
-            ttk.Button(row, text="选择", command=chooser, style="Secondary.TButton").pack(side=RIGHT, padx=(10, 0), pady=1)
-
-    def _choose_install_dir(self) -> None:
-        chosen = filedialog.askdirectory(initialdir=str(Path(self.install_dir.get()).expanduser().parent))
-        if chosen:
-            self.install_dir.set(chosen)
-
-    def _choose_work_dir(self) -> None:
-        chosen = filedialog.askdirectory(initialdir=str(Path(self.work_dir.get()).expanduser()))
-        if chosen:
-            self.work_dir.set(chosen)
-
-    def _start(self) -> None:
-        if not self.app_id.get().strip() or not self.app_secret.get().strip():
-            if not messagebox.askyesno("飞书信息未填完整", "App ID 或 App Secret 为空。继续运行只会生成不完整配置，确定继续吗？"):
-                return
-        self.run_button.config(state="disabled", text="正在运行...")
-        self.results = []
-        self.logs = []
-        self.log_box.delete("1.0", END)
-        threading.Thread(target=self._run_all, daemon=True).start()
-
-    def _run_all(self) -> None:
+    def run(self) -> str:
         try:
             self._append("开始检查和配置...\n")
             self._check_commands()
@@ -208,29 +63,17 @@ class SetupApp:
             self._write_config()
             self._add_manual_items()
             self._write_report()
-            self._append(f"\n报告已生成：{REPORT_FILE}\n")
-            webbrowser.open(REPORT_FILE.as_uri())
-            self._finish("完成，报告已打开")
+            return self._result_page("完成：配置检查报告已生成", "ok")
         except Exception as exc:
             self.results.append(Result("运行过程异常", "fail", f"{exc}\n\n{traceback.format_exc()}"))
             try:
                 self._write_report()
-                webbrowser.open(REPORT_FILE.as_uri())
             except Exception:
                 pass
-            self._append(f"\n发生错误：{exc}\n")
-            self._finish("运行失败，已生成报告")
-
-    def _finish(self, text: str) -> None:
-        self.root.after(0, lambda: self.run_button.config(state="normal", text="一键检查、编译并生成配置"))
-        self.root.after(0, lambda: messagebox.showinfo("sy-feishu-connect", text))
+            return self._result_page("有失败项：请按报告处理", "fail")
 
     def _append(self, text: str) -> None:
         self.logs.append(text)
-        def inner() -> None:
-            self.log_box.insert(END, text)
-            self.log_box.see(END)
-        self.root.after(0, inner)
 
     def _run_cmd(self, cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> tuple[int, str]:
         shown = " ".join(cmd)
@@ -276,29 +119,25 @@ class SetupApp:
 
     def _prepare_repo(self) -> None:
         self._append("\n== 2. 下载或更新 sy-feishu-connect ==\n")
-        install_dir = Path(self.install_dir.get()).expanduser()
-        if (install_dir / ".git").exists():
-            code, out = self._run_cmd(["git", "pull", "--ff-only"], cwd=install_dir, timeout=180)
-            status = "ok" if code == 0 else "fail"
-            self.results.append(Result("更新源码", status, out.strip(), "git pull --ff-only"))
+        if (self.install_dir / ".git").exists():
+            code, out = self._run_cmd(["git", "pull", "--ff-only"], cwd=self.install_dir, timeout=180)
+            self.results.append(Result("更新源码", "ok" if code == 0 else "fail", out.strip(), "git pull --ff-only"))
             if code != 0:
                 raise RuntimeError("源码更新失败。")
-        elif install_dir.exists() and any(install_dir.iterdir()):
-            self.results.append(Result("下载源码", "fail", f"目录已存在且不是空目录：{install_dir}"))
+        elif self.install_dir.exists() and any(self.install_dir.iterdir()):
+            self.results.append(Result("下载源码", "fail", f"目录已存在且不是空目录：{self.install_dir}"))
             raise RuntimeError("安装目录已存在且不是空目录。")
         else:
-            install_dir.parent.mkdir(parents=True, exist_ok=True)
-            code, out = self._run_cmd(["git", "clone", REPO_URL, str(install_dir)], timeout=300)
-            status = "ok" if code == 0 else "fail"
-            self.results.append(Result("下载源码", status, out.strip(), f"git clone {REPO_URL}"))
+            self.install_dir.parent.mkdir(parents=True, exist_ok=True)
+            code, out = self._run_cmd(["git", "clone", REPO_URL, str(self.install_dir)], timeout=300)
+            self.results.append(Result("下载源码", "ok" if code == 0 else "fail", out.strip(), f"git clone {REPO_URL}"))
             if code != 0:
                 raise RuntimeError("源码下载失败。")
 
     def _build_project(self) -> None:
         self._append("\n== 3. 编译程序 ==\n")
-        install_dir = Path(self.install_dir.get()).expanduser()
-        code, out = self._run_cmd(["make", "build"], cwd=install_dir, timeout=600)
-        binary = install_dir / "bin" / "sy-feishu-codex"
+        code, out = self._run_cmd(["make", "build"], cwd=self.install_dir, timeout=600)
+        binary = self.install_dir / "bin" / "sy-feishu-codex"
         if code == 0 and binary.exists():
             self.results.append(Result("编译 sy-feishu-codex", "ok", f"已生成：{binary}", "make build"))
         else:
@@ -307,29 +146,23 @@ class SetupApp:
 
     def _write_config(self) -> None:
         self._append("\n== 4. 生成配置文件 ==\n")
-        project_name = self.project_name.get().strip() or "my-project"
-        work_dir = Path(self.work_dir.get()).expanduser()
-        app_id = self.app_id.get().strip()
-        app_secret = self.app_secret.get().strip()
-        install_dir = Path(self.install_dir.get()).expanduser()
-        config_file = install_dir / "config.toml"
-
-        if not work_dir.exists():
-            self.results.append(Result("检查 work_dir", "fail", f"目录不存在：{work_dir}"))
+        config_file = self.install_dir / "config.toml"
+        if not self.work_dir.exists():
+            self.results.append(Result("检查 work_dir", "fail", f"目录不存在：{self.work_dir}"))
             raise RuntimeError("work_dir 不存在。")
-        self.results.append(Result("检查 work_dir", "ok", f"项目目录存在：{work_dir}"))
+        self.results.append(Result("检查 work_dir", "ok", f"项目目录存在：{self.work_dir}"))
 
         if config_file.exists():
             backup = config_file.with_suffix(".toml.bak." + _dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
             shutil.copy2(config_file, backup)
             self.results.append(Result("备份旧配置", "warn", f"旧配置已备份到：{backup}"))
 
-        data_dir = install_dir / "data"
+        data_dir = self.install_dir / "data"
         content = f'''# Generated by sy-feishu-connect 配置向导
 
 [feishu]
-app_id = "{app_id}"
-app_secret = "{app_secret}"
+app_id = "{self.app_id}"
+app_secret = "{self.app_secret}"
 domain = "feishu"
 require_mention = true
 allow_users = "*"
@@ -338,7 +171,7 @@ working_emoji = "OnIt"
 done_emoji = "DONE"
 
 [codex]
-work_dir = "{work_dir}"
+work_dir = "{self.work_dir}"
 cli_path = "codex"
 model = ""
 reasoning_effort = ""
@@ -355,14 +188,13 @@ max_reply_chars = 3500
 level = "info"
 '''
         config_file.write_text(content, encoding="utf-8")
-        masked = app_secret[:3] + "***" + app_secret[-3:] if len(app_secret) >= 8 else "***"
-        self.results.append(Result("生成配置文件", "ok", f"配置文件：{config_file}\n项目名称：{project_name}\nApp ID：{app_id or '(未填写)'}\nApp Secret：{masked}"))
-        self._append(f"✅ 配置文件已生成：{config_file}\n")
+        masked = self.app_secret[:3] + "***" + self.app_secret[-3:] if len(self.app_secret) >= 8 else "***"
+        self.results.append(Result("生成配置文件", "ok", f"配置文件：{config_file}\n项目名称：{self.project_name}\nApp ID：{self.app_id or '(未填写)'}\nApp Secret：{masked}"))
 
     def _add_manual_items(self) -> None:
         self.results.extend([
-            Result("飞书后台：创建企业自建应用", "warn", "需要用户手动确认。路径：飞书开放平台 -> 开发者后台 -> 创建企业自建应用。"),
-            Result("飞书后台：启用机器人", "warn", "需要用户手动确认。路径：应用能力 -> 机器人。"),
+            Result("飞书后台：创建企业自建应用", "warn", "路径：飞书开放平台 -> 开发者后台 -> 创建企业自建应用。"),
+            Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
             Result("飞书后台：添加权限并发布", "warn", "至少添加 im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。"),
             Result("飞书后台：事件与回调", "warn", "事件 im.message.receive_v1；回调 card.action.trigger；订阅方式都选长连接。"),
             Result("飞书后台：底部自定义栏", "warn", "推荐 4 个菜单：会话、执行、设置、显示。具体见报告。"),
@@ -370,81 +202,210 @@ level = "info"
 
     def _write_report(self) -> None:
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        REPORT_FILE.write_text(render_report(self.results, self.logs, self.install_dir), encoding="utf-8")
+
+    def _result_page(self, title: str, status: str) -> str:
+        report_url = REPORT_FILE.as_uri() if REPORT_FILE.exists() else "#"
         ok_count = sum(1 for r in self.results if r.status == "ok")
         fail_count = sum(1 for r in self.results if r.status == "fail")
         warn_count = sum(1 for r in self.results if r.status == "warn")
-        generated_at = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return page_shell(f"""
+<section class="hero compact">
+  <div class="eyebrow">sy-feishu-connect</div>
+  <h1>{html.escape(title)}</h1>
+  <p>{'失败项为 0 时，就可以去飞书后台完成手动配置，然后双击启动机器人。' if status == 'ok' else '请先处理红色失败项；黄色项目是飞书后台必须人工确认的待办。'}</p>
+  <div class="stats">
+    <div><b>✅ {ok_count}</b><span>通过</span></div>
+    <div><b>⚠️ {warn_count}</b><span>待人工确认</span></div>
+    <div><b>❌ {fail_count}</b><span>失败</span></div>
+  </div>
+  <div class="actions">
+    <a class="primary" href="{html.escape(report_url)}">打开完整报告</a>
+    <a class="secondary" href="/">返回配置向导</a>
+  </div>
+</section>
+{result_table(self.results)}
+<section class="panel"><h2>运行日志</h2><pre class="log">{html.escape(''.join(self.logs)[-30000:])}</pre></section>
+""")
 
-        rows = "\n".join(
-            f"<tr class='{html.escape(r.status)}'><td>{r.icon}</td><td>{html.escape(r.name)}</td><td><pre>{html.escape(r.detail)}</pre></td></tr>"
-            for r in self.results
-        )
-        logs = html.escape("".join(self.logs)[-30000:])
 
-        report = f"""<!doctype html>
+def result_table(results: list[Result]) -> str:
+    rows = "\n".join(
+        f"<tr class='{html.escape(r.status)}'><td>{r.icon}</td><td>{html.escape(r.name)}</td><td><pre>{html.escape(r.detail)}</pre></td></tr>"
+        for r in results
+    )
+    return f"<section class='panel'><h2>检查结果</h2><table><thead><tr><th>状态</th><th>项目</th><th>详情</th></tr></thead><tbody>{rows}</tbody></table></section>"
+
+
+def render_report(results: list[Result], logs: list[str], install_dir: Path) -> str:
+    generated_at = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return page_shell(f"""
+<section class="hero compact">
+  <div class="eyebrow">检查报告</div>
+  <h1>配置检查与飞书待办报告</h1>
+  <p>生成时间：{html.escape(generated_at)}</p>
+</section>
+{result_table(results)}
+<section class="panel">
+  <h2>推荐飞书底部自定义栏</h2>
+  <div class="menu-grid">
+    <div><h3>1. 会话</h3><p>新建会话 <code>/new</code><br>会话列表 <code>/sessions</code><br>当前会话 <code>/status</code></p></div>
+    <div><h3>2. 执行</h3><p>停止执行 <code>/stop</code><br>当前状态 <code>/status</code><br>工作目录 <code>/pwd</code></p></div>
+    <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
+    <div><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
+  </div>
+</section>
+<section class="panel">
+  <h2>下一步</h2>
+  <p>如果失败项是 0，去飞书后台完成黄色待办，然后双击仓库根目录里的 <code>双击启动机器人.command</code>。</p>
+  <pre>cd {html.escape(str(install_dir))}
+./bin/sy-feishu-codex -config config.toml</pre>
+</section>
+<section class="panel"><h2>运行日志</h2><pre class="log">{html.escape(''.join(logs)[-30000:])}</pre></section>
+""")
+
+
+def page_shell(body: str) -> str:
+    return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sy-feishu-connect 配置检查与飞书待办报告</title>
+<title>sy-feishu-connect 小白配置向导</title>
 <style>
-body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;margin:0;background:#eef3f8;color:#172033;line-height:1.6}}
-.wrap{{max-width:1080px;margin:0 auto;background:white;min-height:100vh;padding:36px 46px;box-shadow:0 18px 50px rgba(23,32,51,.12)}}
-h1{{margin:0 0 8px;font-size:36px}} h2{{margin-top:34px}}
-.summary{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}}
-.box{{border:1px solid #d8e2ee;border-radius:8px;padding:16px;background:#fbfdff}}
-.num{{font-size:34px;font-weight:800}}
-table{{width:100%;border-collapse:collapse;margin-top:14px}} th,td{{border:1px solid #d8e2ee;padding:10px;vertical-align:top;text-align:left}} th{{background:#f3f7fb}}
-td:first-child{{font-size:22px;width:52px;text-align:center}}
-pre{{white-space:pre-wrap;margin:0;font-family:"SFMono-Regular",Consolas,monospace;font-size:13px}}
-.ok td{{background:#f3fbf5}} .fail td{{background:#fff5f5}} .warn td{{background:#fff8ed}}
-.menu{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}}
-.card{{border:1px solid #d8e2ee;border-radius:8px;padding:14px;background:#fbfdff}}
-.log{{background:#0f172a;color:#dbeafe;border-radius:8px;padding:14px;max-height:420px;overflow:auto}}
-code{{background:#eef4ff;color:#1d4ed8;padding:2px 5px;border-radius:5px}}
+*{{box-sizing:border-box}} body{{margin:0;background:#eef3f8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.65}}
+.wrap{{max-width:1180px;margin:0 auto;padding:28px}}
+.hero{{background:#1f5eff;color:white;border-radius:8px;padding:30px;margin-bottom:16px;box-shadow:0 18px 40px rgba(31,94,255,.18)}}
+.hero.compact{{padding:26px}} .eyebrow{{font-weight:800;opacity:.85}} h1{{margin:6px 0 10px;font-size:34px;line-height:1.2}} h2{{margin:0 0 14px;font-size:22px}} h3{{margin:0 0 8px}}
+.hero p{{max-width:860px;margin:0;color:#eaf1ff}} .badges{{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}} .badges span{{background:#dbeafe;color:#1d4ed8;border-radius:8px;padding:7px 11px;font-weight:800}}
+.grid{{display:grid;grid-template-columns:330px 1fr;gap:16px}} .panel{{background:white;border:1px solid #d8e2ee;border-radius:8px;padding:20px;margin-bottom:16px}}
+.steps div,.todo div{{background:#eef4ff;color:#1d4ed8;border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:800}} .todo div{{background:#fff8ed;color:#92400e}}
+label{{display:block;font-weight:800;margin:14px 0 6px}} input{{width:100%;height:44px;border:1px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:15px}} .hint{{margin:5px 0 0;color:#64748b;font-size:13px}}
+.actions{{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}} button,.primary,.secondary{{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;padding:12px 16px;font-weight:900;text-decoration:none;cursor:pointer}}
+button,.primary{{background:#1f5eff;color:white}} .secondary{{background:#eef4ff;color:#1d4ed8}} .note{{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;color:#166534}}
+.stats{{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;max-width:620px}} .stats div{{background:rgba(255,255,255,.14);border-radius:8px;padding:12px}} .stats b{{display:block;font-size:28px}} .stats span{{color:#eaf1ff}}
+table{{width:100%;border-collapse:collapse}} th,td{{border:1px solid #d8e2ee;padding:10px;vertical-align:top;text-align:left}} th{{background:#f3f7fb}} td:first-child{{font-size:22px;text-align:center;width:56px}}
+pre{{white-space:pre-wrap;margin:0;font-family:"SFMono-Regular",Consolas,monospace;font-size:13px}} .ok td{{background:#f3fbf5}} .fail td{{background:#fff5f5}} .warn td{{background:#fff8ed}} .log{{background:#0f172a;color:#dbeafe;border-radius:8px;padding:14px;max-height:420px;overflow:auto}}
+.menu-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}} .menu-grid div{{border:1px solid #d8e2ee;border-radius:8px;padding:14px;background:#fbfdff}} code{{background:#eef4ff;color:#1d4ed8;padding:2px 5px;border-radius:5px}}
+@media(max-width:860px){{.wrap{{padding:14px}}.grid,.menu-grid,.stats{{grid-template-columns:1fr}}h1{{font-size:28px}}}}
 </style>
 </head>
-<body><div class="wrap">
-<h1>sy-feishu-connect 配置检查与飞书待办报告</h1>
-<p>生成时间：{html.escape(generated_at)}</p>
-<div class="summary">
-  <div class="box"><div class="num">✅ {ok_count}</div><div>自动检查通过</div></div>
-  <div class="box"><div class="num">⚠️ {warn_count}</div><div>需要人工确认</div></div>
-  <div class="box"><div class="num">❌ {fail_count}</div><div>失败项</div></div>
+<body><main class="wrap">{body}</main></body>
+</html>"""
+
+
+def home_page() -> str:
+    return page_shell(f"""
+<section class="hero">
+  <div class="eyebrow">sy-feishu-connect</div>
+  <h1>小白配置向导</h1>
+  <p>这个页面运行在你的电脑本地，只负责检查 Codex、下载或更新源码、编译程序、生成 config.toml 和测试报告。</p>
+  <div class="badges"><span>1 双击打开</span><span>2 填 3 个关键信息</span><span>3 看报告</span><span>4 飞书后台手动确认</span><span>5 双击启动机器人</span></div>
+</section>
+<div class="grid">
+  <aside>
+    <section class="panel steps">
+      <h2>工具自动做</h2>
+      <div>检查 Codex / Git / Go / Make</div>
+      <div>下载或更新 sy-feishu-connect</div>
+      <div>编译 bin/sy-feishu-codex</div>
+      <div>生成 config.toml 和检查报告</div>
+    </section>
+    <section class="panel todo">
+      <h2>飞书后台手动做</h2>
+      <div>创建企业自建应用</div>
+      <div>启用机器人能力</div>
+      <div>添加消息权限并发布</div>
+      <div>事件/回调选择长连接</div>
+      <div>配置底部自定义栏 4 组</div>
+    </section>
+  </aside>
+  <section class="panel">
+    <h2>先填这 5 项</h2>
+    <p class="note">新手重点确认：Codex 项目目录、飞书 App ID、飞书 App Secret。安装目录默认也能用。</p>
+    <form method="post" action="/run">
+      <label>安装目录</label>
+      <input name="install_dir" value="{html.escape(str(DEFAULT_INSTALL_DIR))}">
+      <p class="hint">工具会在这里下载/更新源码，并生成 bin/sy-feishu-codex。</p>
+      <label>项目名称</label>
+      <input name="project_name" value="my-project">
+      <p class="hint">只是报告里显示用，默认 my-project 即可。</p>
+      <label>Codex 项目目录</label>
+      <input name="work_dir" value="{html.escape(os.getcwd())}">
+      <p class="hint">Codex 会读写这个目录，请填你的真实代码项目路径。</p>
+      <label>飞书 App ID</label>
+      <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
+      <p class="hint">飞书开放平台 -> 应用后台 -> 凭据与基础信息。</p>
+      <label>飞书 App Secret</label>
+      <input name="app_secret" type="password" placeholder="只会写入本机 config.toml">
+      <div class="actions">
+        <button type="submit">一键检查、编译并生成配置</button>
+        <a class="secondary" href="{REPORT_FILE.as_uri() if REPORT_FILE.exists() else '#'}">打开上次报告</a>
+      </div>
+    </form>
+  </section>
 </div>
-<h2>检查结果</h2>
-<table><thead><tr><th>状态</th><th>项目</th><th>详情</th></tr></thead><tbody>{rows}</tbody></table>
-<h2>推荐飞书底部自定义栏</h2>
-<div class="menu">
-  <div class="card"><h3>1. 会话</h3><p>新建会话 <code>/new</code><br>会话列表 <code>/sessions</code><br>当前会话 <code>/status</code></p></div>
-  <div class="card"><h3>2. 执行</h3><p>停止执行 <code>/stop</code><br>当前状态 <code>/status</code><br>工作目录 <code>/pwd</code></p></div>
-  <div class="card"><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
-  <div class="card"><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
-</div>
-<h2>结论和下一步</h2>
-<p>如果失败项是 0，说明本机自动检查基本通过。⚠️ 是必须去飞书后台手动确认的项目，不代表程序失败。确认后可以直接双击仓库根目录里的 <code>双击启动机器人.command</code>。也可以用命令行启动：</p>
-<pre>cd {html.escape(str(Path(self.install_dir.get()).expanduser()))}
-./bin/sy-feishu-codex -config config.toml</pre>
-<h2>运行日志</h2>
-<pre class="log">{logs}</pre>
-</div></body></html>"""
-        REPORT_FILE.write_text(report, encoding="utf-8")
+""")
 
-    def _open_report(self) -> None:
-        if REPORT_FILE.exists():
-            webbrowser.open(REPORT_FILE.as_uri())
-        else:
-            messagebox.showwarning("没有报告", "还没有生成报告，请先点击“开始检查并配置”。")
 
-    def _open_config_dir(self) -> None:
-        install_dir = Path(self.install_dir.get()).expanduser()
-        install_dir.mkdir(parents=True, exist_ok=True)
-        webbrowser.open(install_dir.as_uri())
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path == "/health":
+            self._send_json({"ok": True})
+            return
+        self._send_html(home_page())
 
-    def run(self) -> None:
-        self.root.mainloop()
+    def do_POST(self) -> None:
+        if self.path != "/run":
+            self.send_error(404)
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length).decode("utf-8")
+        parsed = urllib.parse.parse_qs(raw)
+        form = {key: values[0] if values else "" for key, values in parsed.items()}
+        self._send_html(Runner(form).run())
+
+    def log_message(self, fmt: str, *args: object) -> None:
+        return
+
+    def _send_html(self, content: str) -> None:
+        data = content.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _send_json(self, payload: dict[str, object]) -> None:
+        data = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+def find_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def main() -> None:
+    port = find_port()
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    url = f"http://127.0.0.1:{port}/"
+    print("sy-feishu-connect 小白配置向导已启动")
+    print(f"浏览器地址：{url}")
+    print("请不要关闭这个窗口；配置完成后可以按 Ctrl+C 退出。")
+    threading.Timer(0.4, lambda: webbrowser.open(url)).start()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
-    app = SetupApp()
-    app.run()
+    main()
