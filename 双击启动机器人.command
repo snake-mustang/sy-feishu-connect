@@ -8,7 +8,7 @@ echo
 
 if ! command -v sy-feishu-connect >/dev/null 2>&1; then
   echo "没有找到 sy-feishu-connect 命令。"
-  echo "请先在终端运行：npm install -g github:snake-mustang/sy-feishu-connect"
+  echo "请先在终端运行：npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz"
   echo
   read -r -p "按回车键退出..."
   exit 1

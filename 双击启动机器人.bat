@@ -11,7 +11,7 @@ echo.
 where sy-feishu-connect >nul 2>nul
 if errorlevel 1 (
   echo 没有找到 sy-feishu-connect 命令。
-  echo 请先在命令行运行：npm install -g github:snake-mustang/sy-feishu-connect
+  echo 请先在命令行运行：npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
   echo.
   pause
   exit /b 1

@@ -7,7 +7,7 @@
 普通用户优先使用 npm 全局安装：
 
 ```bash
-npm install -g github:snake-mustang/sy-feishu-connect
+npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
 ```
 
 检查是否可用：

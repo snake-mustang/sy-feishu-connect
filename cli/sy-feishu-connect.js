@@ -60,7 +60,7 @@ function help() {
   sy-feishu-connect version
 
 推荐新手顺序：
-  1. npm install -g github:snake-mustang/sy-feishu-connect
+  1. npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
   2. sy-feishu-connect doctor
   3. sy-feishu-connect setup
   4. sy-feishu-connect start

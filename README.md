@@ -13,7 +13,7 @@
 ### 1. 安装
 
 ```bash
-npm install -g github:snake-mustang/sy-feishu-connect
+npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
 ```
 
 以后如果发布到 npm 官方 registry，也可以改用更短的：
