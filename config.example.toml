@@ -53,5 +53,14 @@ queue_messages = true
 # Max characters per Feishu text message chunk.
 max_reply_chars = 3500
 
+[usage]
+# Optional: identify this installed bot/runtime in local and remote usage logs.
+operator_name = ""
+employee_id = ""
+
+# Optional: HTTP endpoint that accepts POSTed JSON usage events.
+# Examples: your own API, n8n webhook, log collector, or serverless function.
+report_url = ""
+
 [log]
 level = "info"

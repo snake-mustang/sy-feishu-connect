@@ -77,6 +77,11 @@ func run() error {
 		Platform:      bot,
 		DataDir:       cfg.Bridge.DataDir,
 		QueueMessages: cfg.Bridge.QueueMessages,
+		Usage: bridge.UsageOptions{
+			OperatorName: cfg.Usage.OperatorName,
+			EmployeeID:   cfg.Usage.EmployeeID,
+			ReportURL:    cfg.Usage.ReportURL,
+		},
 	})
 	if err != nil {
 		return err

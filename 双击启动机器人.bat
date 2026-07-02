@@ -8,37 +8,33 @@ cd /d "%DIR%"
 echo 正在启动 sy-feishu-connect 飞书机器人...
 echo.
 
-if not exist "%DIR%config.toml" (
-  echo 没有找到 config.toml。
-  echo 请先双击：双击打开配置工具.bat
+where sy-feishu-connect >nul 2>nul
+if errorlevel 1 (
+  echo 没有找到 sy-feishu-connect 命令。
+  echo 请先在命令行运行：npm install -g github:snake-mustang/sy-feishu-connect
   echo.
   pause
   exit /b 1
 )
 
-set "BIN=%DIR%bin\sy-feishu-codex.exe"
-if not exist "%BIN%" (
-  echo 没有找到可执行文件：bin\sy-feishu-codex.exe
-  echo 正在尝试自动编译...
-  if not exist "%DIR%bin" mkdir "%DIR%bin"
-  go build -o "%BIN%" ./cmd/sy-feishu-codex
-  if errorlevel 1 (
-    echo.
-    echo 编译失败。请先确认已经安装 Go，并且终端可以运行 go version。
-    echo.
-    pause
-    exit /b 1
-  )
+set "CONFIG=%USERPROFILE%\.sy-feishu-connect\config.toml"
+if not exist "%CONFIG%" (
+  echo 没有找到配置文件：%CONFIG%
+  echo 请先运行：sy-feishu-connect setup
+  echo 或者双击：双击打开配置工具.bat
+  echo.
+  pause
+  exit /b 1
 )
 
 echo 启动成功后，请不要关闭这个窗口。
 echo 关闭窗口或按 Ctrl+C，机器人就会停止。
 echo.
-echo 配置文件：%DIR%config.toml
-echo 启动命令：%BIN% -config %DIR%config.toml
+echo 配置文件：%CONFIG%
+echo 启动命令：sy-feishu-connect start
 echo.
 
-"%BIN%" -config "%DIR%config.toml"
+sy-feishu-connect start
 
 echo.
 echo 机器人已停止。

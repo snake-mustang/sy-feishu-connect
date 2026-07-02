@@ -14,6 +14,7 @@ type Options struct {
 	Platform      Platform
 	DataDir       string
 	QueueMessages bool
+	Usage         UsageOptions
 }
 
 type Service struct {
@@ -44,7 +45,7 @@ func New(opts Options) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	usage, err := OpenUsageTracker(opts.DataDir)
+	usage, err := OpenUsageTracker(opts.DataDir, opts.Usage)
 	if err != nil {
 		return nil, err
 	}

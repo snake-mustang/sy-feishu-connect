@@ -1,8 +1,11 @@
 package bridge
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,22 +19,32 @@ type UsageTracker struct {
 	eventsPath  string
 	summaryPath string
 	summary     UsageSummary
+	opts        UsageOptions
+	client      *http.Client
+}
+
+type UsageOptions struct {
+	OperatorName string
+	EmployeeID   string
+	ReportURL    string
 }
 
 type UsageEvent struct {
-	Time       time.Time `json:"time"`
-	SessionKey string    `json:"session_key"`
-	MessageID  string    `json:"message_id,omitempty"`
-	ChatID     string    `json:"chat_id,omitempty"`
-	ChatType   string    `json:"chat_type,omitempty"`
-	UserID     string    `json:"user_id,omitempty"`
-	Kind       string    `json:"kind"`
-	Command    string    `json:"command,omitempty"`
-	Success    bool      `json:"success"`
-	DurationMS int64     `json:"duration_ms"`
-	TextChars  int       `json:"text_chars"`
-	ReplyChars int       `json:"reply_chars,omitempty"`
-	Error      string    `json:"error,omitempty"`
+	Time         time.Time `json:"time"`
+	OperatorName string    `json:"operator_name,omitempty"`
+	EmployeeID   string    `json:"employee_id,omitempty"`
+	SessionKey   string    `json:"session_key"`
+	MessageID    string    `json:"message_id,omitempty"`
+	ChatID       string    `json:"chat_id,omitempty"`
+	ChatType     string    `json:"chat_type,omitempty"`
+	UserID       string    `json:"user_id,omitempty"`
+	Kind         string    `json:"kind"`
+	Command      string    `json:"command,omitempty"`
+	Success      bool      `json:"success"`
+	DurationMS   int64     `json:"duration_ms"`
+	TextChars    int       `json:"text_chars"`
+	ReplyChars   int       `json:"reply_chars,omitempty"`
+	Error        string    `json:"error,omitempty"`
 }
 
 type UsageSummary struct {
@@ -55,7 +68,7 @@ type UsageCounter struct {
 	LastSeen   time.Time `json:"last_seen"`
 }
 
-func OpenUsageTracker(dataDir string) (*UsageTracker, error) {
+func OpenUsageTracker(dataDir string, opts UsageOptions) (*UsageTracker, error) {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return nil, err
 	}
@@ -67,6 +80,8 @@ func OpenUsageTracker(dataDir string) (*UsageTracker, error) {
 			Chats:    map[string]*UsageCounter{},
 			Commands: map[string]int{},
 		},
+		opts:   sanitizeUsageOptions(opts),
+		client: &http.Client{Timeout: 5 * time.Second},
 	}
 	if b, err := os.ReadFile(t.summaryPath); err == nil {
 		if err := json.Unmarshal(b, &t.summary); err != nil {
@@ -83,6 +98,12 @@ func (t *UsageTracker) Record(event UsageEvent) error {
 	}
 	if event.Time.IsZero() {
 		event.Time = time.Now()
+	}
+	if event.OperatorName == "" {
+		event.OperatorName = t.opts.OperatorName
+	}
+	if event.EmployeeID == "" {
+		event.EmployeeID = t.opts.EmployeeID
 	}
 	event.Kind = strings.TrimSpace(event.Kind)
 	if event.Kind == "" {
@@ -120,7 +141,11 @@ func (t *UsageTracker) Record(event UsageEvent) error {
 	if event.Command != "" {
 		t.summary.Commands[event.Command]++
 	}
-	return t.saveSummaryLocked()
+	if err := t.saveSummaryLocked(); err != nil {
+		return err
+	}
+	t.reportAsync(event)
+	return nil
 }
 
 func (t *UsageTracker) Report(limit int) string {
@@ -156,8 +181,47 @@ func (t *UsageTracker) Report(limit int) string {
 	b.WriteString("\n本地文件:\n")
 	b.WriteString("原始明细: " + t.eventsPath + "\n")
 	b.WriteString("汇总结果: " + t.summaryPath + "\n")
+	if t.opts.ReportURL != "" {
+		b.WriteString("远程上报: 已启用\n")
+	} else {
+		b.WriteString("远程上报: 未配置\n")
+	}
 	b.WriteString("\n提示：让用户发送 /whoami，可以把 open_id 对应到真实姓名。")
 	return b.String()
+}
+
+func (t *UsageTracker) reportAsync(event UsageEvent) {
+	if t.opts.ReportURL == "" {
+		return
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	go func() {
+		req, err := http.NewRequest(http.MethodPost, t.opts.ReportURL, bytes.NewReader(payload))
+		if err != nil {
+			slog.Warn("usage: build report request failed", "error", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := t.client.Do(req)
+		if err != nil {
+			slog.Warn("usage: report failed", "error", err)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			slog.Warn("usage: report rejected", "status", resp.Status)
+		}
+	}()
+}
+
+func sanitizeUsageOptions(opts UsageOptions) UsageOptions {
+	opts.OperatorName = strings.TrimSpace(opts.OperatorName)
+	opts.EmployeeID = strings.TrimSpace(opts.EmployeeID)
+	opts.ReportURL = strings.TrimSpace(opts.ReportURL)
+	return opts
 }
 
 func (t *UsageTracker) ensureMaps() {

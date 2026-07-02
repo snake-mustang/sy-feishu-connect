@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-sy-feishu-connect 小白配置向导
+sy-feishu-connect browser setup wizard.
 
-双击根目录的 .command 后，本脚本会启动一个本地网页向导。
-不用 Tk，避免 macOS 上出现空白窗口。
+This is an optional GUI helper for users who dislike terminal prompts. The
+primary installation path is still:
+
+    npm install -g github:snake-mustang/sy-feishu-connect
+    sy-feishu-connect doctor
+    sy-feishu-connect setup
 """
 
 from __future__ import annotations
@@ -26,35 +30,25 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
-REPO_URL = "https://github.com/snake-mustang/sy-feishu-connect.git"
 HOME = Path.home()
 APP_DIR = Path(__file__).resolve().parent
-DEFAULT_INSTALL_DIR = APP_DIR
-REPORT_DIR = HOME / ".sy-feishu-connect"
-REPORT_FILE = REPORT_DIR / "配置检查与飞书待办报告.html"
-
-
-def binary_name() -> str:
-    return "sy-feishu-codex.exe" if os.name == "nt" else "sy-feishu-codex"
+STATE_DIR = HOME / ".sy-feishu-connect"
+DEFAULT_CONFIG_FILE = STATE_DIR / "config.toml"
+REPORT_FILE = STATE_DIR / "配置检查报告.html"
 
 
 def toml_quote(value: Path | str) -> str:
     return json.dumps(str(value), ensure_ascii=False)
 
 
-def choose_directory(current: str, target: str = "") -> str:
-    if current:
-        initial = Path(current).expanduser()
-    elif target == "work_dir":
-        initial = DEFAULT_INSTALL_DIR.parent
-    else:
-        initial = DEFAULT_INSTALL_DIR
+def choose_directory(current: str) -> str:
+    initial = Path(current).expanduser() if current else HOME
     if not initial.exists():
-        initial = initial.parent if initial.parent.exists() else Path.cwd()
+        initial = initial.parent if initial.parent.exists() else HOME
 
     if sys.platform == "darwin":
         script = (
-            'POSIX path of (choose folder with prompt "选择文件夹" '
+            'POSIX path of (choose folder with prompt "选择 Codex 要操作的项目目录" '
             f'default location POSIX file {json.dumps(str(initial))})'
         )
         try:
@@ -67,7 +61,7 @@ def choose_directory(current: str, target: str = "") -> str:
         ps = f"""
 Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = '选择文件夹'
+$dialog.Description = '选择 Codex 要操作的项目目录'
 $dialog.SelectedPath = {json.dumps(str(initial))}
 if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -93,19 +87,16 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {{
                 return proc.stdout.strip() if proc.returncode == 0 else ""
             except Exception:
                 pass
+    return ""
 
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
 
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        chosen = filedialog.askdirectory(initialdir=str(initial), title="选择文件夹")
-        root.destroy()
-        return chosen or ""
-    except Exception:
-        return ""
+def local_cli_command() -> list[str] | None:
+    local_cli = APP_DIR / "cli" / "sy-feishu-connect.js"
+    if local_cli.exists() and shutil.which("node"):
+        return ["node", str(local_cli)]
+    if shutil.which("sy-feishu-connect"):
+        return ["sy-feishu-connect"]
+    return None
 
 
 @dataclass
@@ -113,7 +104,6 @@ class Result:
     name: str
     status: str
     detail: str = ""
-    command: str = ""
 
     @property
     def icon(self) -> str:
@@ -122,140 +112,84 @@ class Result:
 
 class Runner:
     def __init__(self, form: dict[str, str]) -> None:
-        self.install_dir = Path(form.get("install_dir") or str(DEFAULT_INSTALL_DIR)).expanduser()
-        self.project_name = form.get("project_name") or "my-project"
-        raw_work_dir = (form.get("work_dir") or "").strip()
-        self.work_dir = Path(raw_work_dir).expanduser() if raw_work_dir else None
+        self.config_file = Path(form.get("config_file") or str(DEFAULT_CONFIG_FILE)).expanduser()
+        self.work_dir = Path(form.get("work_dir") or "").expanduser()
         self.app_id = (form.get("app_id") or "").strip()
         self.app_secret = (form.get("app_secret") or "").strip()
+        self.operator_name = (form.get("operator_name") or "").strip()
+        self.employee_id = (form.get("employee_id") or "").strip()
+        self.report_url = (form.get("report_url") or "").strip()
         self.results: list[Result] = []
         self.logs: list[str] = []
 
     def run(self) -> str:
         try:
-            self._append("开始检查和配置...\n")
-            self._check_commands()
-            self._prepare_repo()
-            self._build_project()
+            self._append("开始检查 sy-feishu-connect 配置。\n")
+            self._check_environment()
             self._write_config()
-            self._add_manual_items()
+            self._add_feishu_todos()
             self._write_report()
-            return self._result_page("完成：配置检查报告已生成", "ok")
+            return self._result_page("配置文件已生成", "ok")
         except Exception as exc:
             self.results.append(Result("运行过程异常", "fail", f"{exc}\n\n{traceback.format_exc()}"))
             try:
                 self._write_report()
             except Exception:
                 pass
-            return self._result_page("有失败项：请按报告处理", "fail")
+            return self._result_page("有失败项，请按报告处理", "fail")
 
     def _append(self, text: str) -> None:
         self.logs.append(text)
 
-    def _run_cmd(self, cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> tuple[int, str]:
-        shown = " ".join(cmd)
-        self._append(f"$ {shown}\n")
-        proc = subprocess.run(
-            cmd,
-            cwd=str(cwd) if cwd else None,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-        )
+    def _run(self, cmd: list[str], timeout: int = 120) -> tuple[int, str]:
+        self._append("$ " + " ".join(cmd) + "\n")
+        proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
         out = proc.stdout or ""
         if out:
-            self._append(out[-8000:] + ("\n" if not out.endswith("\n") else ""))
+            self._append(out[-12000:] + ("\n" if not out.endswith("\n") else ""))
         return proc.returncode, out
 
-    def _check_one(self, name: str, hint: str, version_args: list[str] | None = None) -> None:
-        path = shutil.which(name)
+    def _check_command(self, title: str, command: str, args: list[str], hint: str) -> None:
+        path = shutil.which(command)
         if not path:
-            self.results.append(Result(f"检查 {name}", "fail", hint))
-            self._append(f"❌ 未找到 {name}：{hint}\n")
+            self.results.append(Result(title, "fail", hint))
             return
-        detail = f"路径：{path}"
-        if version_args:
-            try:
-                code, out = self._run_cmd(version_args, timeout=20)
-                if code == 0 and out.strip():
-                    detail += "\n" + out.strip().splitlines()[0]
-            except Exception as exc:
-                detail += f"\n版本检查失败：{exc}"
-        self.results.append(Result(f"检查 {name}", "ok", detail))
-        self._append(f"✅ {name} 可用：{path}\n")
+        code, out = self._run([command, *args], timeout=40)
+        first = out.strip().splitlines()[0] if out.strip() else path
+        self.results.append(Result(title, "ok" if code == 0 else "warn", first))
 
-    def _check_commands(self) -> None:
+    def _check_environment(self) -> None:
         self._append("\n== 1. 检查本机环境 ==\n")
-        self._check_one("git", "请先安装 Git：https://git-scm.com/", ["git", "--version"])
-        self._check_one("go", "请先安装 Go 1.25+：https://go.dev/dl/", ["go", "version"])
-        self._check_one("codex", "请先安装并登录 Codex CLI，确保终端能运行 codex。", ["codex", "--version"])
-        if shutil.which("make"):
-            self._check_one("make", "可选：用于执行 make build。", ["make", "--version"])
-        else:
-            self.results.append(Result("检查 make", "warn", "未找到 make。没关系，配置工具会自动改用 go build 编译，Windows 用户通常不需要额外安装 make。"))
-            self._append("⚠️ 未找到 make，将使用 go build 直接编译。\n")
-        if any(r.status == "fail" and r.name.startswith("检查 ") for r in self.results):
-            raise RuntimeError("环境检查未通过，请先安装缺失工具。")
+        self._check_command("检查 Node.js", "node", ["--version"], "请先安装 Node.js，然后重新打开配置工具。")
+        self._check_command("检查 Codex CLI", "codex", ["--version"], "请先安装并登录 Codex CLI。")
 
-    def _prepare_repo(self) -> None:
-        self._append("\n== 2. 下载或更新 sy-feishu-connect ==\n")
-        if (self.install_dir / ".git").exists():
-            code, out = self._run_cmd(["git", "pull", "--ff-only"], cwd=self.install_dir, timeout=180)
-            self.results.append(Result("更新源码", "ok" if code == 0 else "fail", out.strip(), "git pull --ff-only"))
-            if code != 0:
-                raise RuntimeError("源码更新失败。")
-        elif (self.install_dir / "go.mod").exists() and (self.install_dir / "cmd" / "sy-feishu-codex").exists():
-            self.results.append(Result("使用当前源码目录", "ok", f"安装目录看起来已经是 sy-feishu-connect：{self.install_dir}"))
-        elif self.install_dir.exists() and any(self.install_dir.iterdir()):
-            self.results.append(Result("下载源码", "fail", f"目录已存在且不是空目录：{self.install_dir}"))
-            raise RuntimeError("安装目录已存在且不是空目录。")
-        else:
-            self.install_dir.parent.mkdir(parents=True, exist_ok=True)
-            code, out = self._run_cmd(["git", "clone", REPO_URL, str(self.install_dir)], timeout=300)
-            self.results.append(Result("下载源码", "ok" if code == 0 else "fail", out.strip(), f"git clone {REPO_URL}"))
-            if code != 0:
-                raise RuntimeError("源码下载失败。")
+        cli = local_cli_command()
+        if not cli:
+            self.results.append(Result("检查 sy-feishu-connect", "fail", "没有找到 sy-feishu-connect 命令。请先运行：npm install -g github:snake-mustang/sy-feishu-connect"))
+            raise RuntimeError("sy-feishu-connect 未安装。")
 
-    def _build_project(self) -> None:
-        self._append("\n== 3. 编译程序 ==\n")
-        bin_dir = self.install_dir / "bin"
-        bin_dir.mkdir(parents=True, exist_ok=True)
-        binary = bin_dir / binary_name()
-        if os.name != "nt" and shutil.which("make"):
-            cmd = ["make", "build"]
-        else:
-            cmd = ["go", "build", "-o", str(binary), "./cmd/sy-feishu-codex"]
-        code, out = self._run_cmd(cmd, cwd=self.install_dir, timeout=600)
-        if code == 0 and binary.exists():
-            self.results.append(Result("编译 sy-feishu-codex", "ok", f"已生成：{binary}", " ".join(cmd)))
-        else:
-            self.results.append(Result("编译 sy-feishu-codex", "fail", out.strip(), " ".join(cmd)))
-            raise RuntimeError("编译失败。")
+        code, out = self._run([*cli, "doctor"], timeout=180)
+        self.results.append(Result("运行 sy-feishu-connect doctor", "ok" if code == 0 else "fail", out.strip()))
+        if code != 0:
+            raise RuntimeError("doctor 检查未通过。")
 
     def _write_config(self) -> None:
-        self._append("\n== 4. 生成配置文件 ==\n")
-        config_file = self.install_dir / "config.toml"
-        if self.work_dir is None:
-            self.results.append(Result("检查 Codex 要操作的项目目录", "fail", "还没有选择项目目录。请点击页面里“Codex 要操作的项目目录”右侧的 ...，选择你真正想让飞书里的 Codex 操作的业务项目。"))
-            raise RuntimeError("没有选择 Codex 要操作的项目目录。")
+        self._append("\n== 2. 生成配置文件 ==\n")
         if not self.work_dir.exists():
-            self.results.append(Result("检查 work_dir", "fail", f"目录不存在：{self.work_dir}"))
-            raise RuntimeError("work_dir 不存在。")
-        self.results.append(Result("检查 work_dir", "ok", f"项目目录存在：{self.work_dir}"))
-        try:
-            if self.work_dir.resolve() == self.install_dir.resolve():
-                self.results.append(Result("确认项目目录用途", "warn", "你把 Codex 要操作的项目目录选成了 sy-feishu-connect 工具目录。只有当你想让飞书里的 Codex 修改这个工具源码时，才应该这样选。"))
-        except Exception:
-            pass
+            self.results.append(Result("检查 Codex 项目目录", "fail", f"目录不存在：{self.work_dir}"))
+            raise RuntimeError("Codex 项目目录不存在。")
+        if self.app_id == "" or self.app_secret == "":
+            self.results.append(Result("检查飞书凭证", "fail", "App ID 和 App Secret 都不能为空。"))
+            raise RuntimeError("飞书凭证未填写。")
 
-        if config_file.exists():
-            backup = config_file.with_suffix(".toml.bak." + _dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
-            shutil.copy2(config_file, backup)
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        if self.config_file.exists():
+            backup = self.config_file.with_suffix(".toml.bak." + _dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
+            shutil.copy2(self.config_file, backup)
             self.results.append(Result("备份旧配置", "warn", f"旧配置已备份到：{backup}"))
 
-        data_dir = self.install_dir / "data"
-        content = f'''# Generated by sy-feishu-connect 配置向导
+        data_dir = self.config_file.parent / "data"
+        content = f'''# Generated by sy-feishu-connect setup wizard
 
 [feishu]
 app_id = {toml_quote(self.app_id)}
@@ -281,28 +215,35 @@ data_dir = {toml_quote(data_dir)}
 queue_messages = true
 max_reply_chars = 3500
 
+[usage]
+operator_name = {toml_quote(self.operator_name)}
+employee_id = {toml_quote(self.employee_id)}
+report_url = {toml_quote(self.report_url)}
+
 [log]
 level = "info"
 '''
-        config_file.write_text(content, encoding="utf-8")
-        masked = self.app_secret[:3] + "***" + self.app_secret[-3:] if len(self.app_secret) >= 8 else "***"
-        self.results.append(Result("生成配置文件", "ok", f"配置文件：{config_file}\n项目名称：{self.project_name}\nApp ID：{self.app_id or '(未填写)'}\nApp Secret：{masked}"))
+        self.config_file.write_text(content, encoding="utf-8")
+        self.results.append(Result("生成配置文件", "ok", f"配置文件：{self.config_file}\nCodex 项目目录：{self.work_dir}"))
+        if self.report_url:
+            self.results.append(Result("统计上报", "ok", f"已配置远程上报地址：{self.report_url}"))
+        else:
+            self.results.append(Result("统计上报", "warn", "未填写远程上报地址，使用记录只保存在本机。"))
 
-    def _add_manual_items(self) -> None:
+    def _add_feishu_todos(self) -> None:
         self.results.extend([
-            Result("飞书后台：创建企业自建应用", "warn", "路径：飞书开放平台 -> 开发者后台 -> 创建企业自建应用。"),
+            Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
-            Result("飞书后台：添加权限并发布", "warn", "至少添加 im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。"),
-            Result("飞书后台：事件与回调", "warn", "事件 im.message.receive_v1；回调 card.action.trigger；订阅方式都选长连接。"),
-            Result("飞书后台：底部自定义栏", "warn", "推荐 4 个菜单：会话、执行、设置、显示。具体见报告。"),
+            Result("飞书后台：添加权限并发布", "warn", "添加 im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。"),
+            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1。"),
+            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。"),
         ])
 
     def _write_report(self) -> None:
-        REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        REPORT_FILE.write_text(render_report(self.results, self.logs, self.install_dir), encoding="utf-8")
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        REPORT_FILE.write_text(render_report(self.results, self.logs, self.config_file), encoding="utf-8")
 
     def _result_page(self, title: str, status: str) -> str:
-        report_url = REPORT_FILE.as_uri() if REPORT_FILE.exists() else "#"
         ok_count = sum(1 for r in self.results if r.status == "ok")
         fail_count = sum(1 for r in self.results if r.status == "fail")
         warn_count = sum(1 for r in self.results if r.status == "warn")
@@ -310,14 +251,14 @@ level = "info"
 <section class="hero compact">
   <div class="eyebrow">sy-feishu-connect</div>
   <h1>{html.escape(title)}</h1>
-  <p>{'失败项为 0 时，就可以去飞书后台完成手动配置，然后双击启动机器人。' if status == 'ok' else '请先处理红色失败项；黄色项目是飞书后台必须人工确认的待办。'}</p>
+  <p>{'下一步去飞书后台完成手动配置，然后运行 sy-feishu-connect start。' if status == 'ok' else '请先处理红色失败项；黄色项目是飞书后台必须人工确认的待办。'}</p>
   <div class="stats">
     <div><b>✅ {ok_count}</b><span>通过</span></div>
     <div><b>⚠️ {warn_count}</b><span>待人工确认</span></div>
     <div><b>❌ {fail_count}</b><span>失败</span></div>
   </div>
   <div class="actions">
-    <a class="primary" href="{html.escape(report_url)}">打开完整报告</a>
+    <a class="primary" href="{REPORT_FILE.as_uri() if REPORT_FILE.exists() else '#'}">打开完整报告</a>
     <a class="secondary" href="/">返回配置向导</a>
   </div>
 </section>
@@ -334,10 +275,8 @@ def result_table(results: list[Result]) -> str:
     return f"<section class='panel'><h2>检查结果</h2><table><thead><tr><th>状态</th><th>项目</th><th>详情</th></tr></thead><tbody>{rows}</tbody></table></section>"
 
 
-def render_report(results: list[Result], logs: list[str], install_dir: Path) -> str:
+def render_report(results: list[Result], logs: list[str], config_file: Path) -> str:
     generated_at = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    start_file = "双击启动机器人.bat" if os.name == "nt" else "双击启动机器人.command"
-    start_cmd = ".\\bin\\sy-feishu-codex.exe -config config.toml" if os.name == "nt" else "./bin/sy-feishu-codex -config config.toml"
     return page_shell(f"""
 <section class="hero compact">
   <div class="eyebrow">检查报告</div>
@@ -356,9 +295,9 @@ def render_report(results: list[Result], logs: list[str], install_dir: Path) -> 
 </section>
 <section class="panel">
   <h2>下一步</h2>
-  <p>如果失败项是 0，去飞书后台完成黄色待办，然后双击仓库根目录里的 <code>{html.escape(start_file)}</code>。</p>
-  <pre>cd {html.escape(str(install_dir))}
-{html.escape(start_cmd)}</pre>
+  <p>如果失败项是 0，去飞书后台完成黄色待办，然后运行：</p>
+  <pre>sy-feishu-connect start</pre>
+  <p>配置文件：<code>{html.escape(str(config_file))}</code></p>
 </section>
 <section class="panel"><h2>运行日志</h2><pre class="log">{html.escape(''.join(logs)[-30000:])}</pre></section>
 """)
@@ -394,7 +333,7 @@ async function chooseDir(targetId) {{
   const input = document.getElementById(targetId);
   const current = input ? input.value : "";
   try {{
-    const res = await fetch("/choose-dir?target=" + encodeURIComponent(targetId) + "&current=" + encodeURIComponent(current));
+    const res = await fetch("/choose-dir?current=" + encodeURIComponent(current));
     const data = await res.json();
     if (data && data.path && input) {{
       input.value = data.path;
@@ -415,53 +354,61 @@ def home_page() -> str:
 <section class="hero">
   <div class="eyebrow">sy-feishu-connect</div>
   <h1>小白配置向导</h1>
-  <p>这个页面运行在你的电脑本地，只负责检查 Codex、下载或更新源码、编译程序、生成 config.toml 和测试报告。</p>
-  <div class="badges"><span>1 双击打开</span><span>2 填 3 个关键信息</span><span>3 看报告</span><span>4 飞书后台手动确认</span><span>5 双击启动机器人</span></div>
+  <p>这个页面只做配置和检查。安装请先运行 <code>npm install -g github:snake-mustang/sy-feishu-connect</code>，然后用这里生成配置。</p>
+  <div class="badges"><span>1 检查命令</span><span>2 选择项目目录</span><span>3 填飞书密钥</span><span>4 填统计信息</span><span>5 生成报告</span></div>
 </section>
 <div class="grid">
   <aside>
     <section class="panel steps">
       <h2>工具自动做</h2>
-      <div>检查 Codex / Git / Go / Make</div>
-      <div>下载或更新 sy-feishu-connect</div>
-      <div>编译 bin/sy-feishu-codex</div>
-      <div>生成 config.toml 和检查报告</div>
+      <div>检查 Node.js / Codex / sy-feishu-connect</div>
+      <div>生成 ~/.sy-feishu-connect/config.toml</div>
+      <div>生成测试结果报告</div>
+      <div>提示下一步启动命令</div>
     </section>
     <section class="panel todo">
       <h2>飞书后台手动做</h2>
       <div>创建企业自建应用</div>
       <div>启用机器人能力</div>
       <div>添加消息权限并发布</div>
-      <div>事件/回调选择长连接</div>
+      <div>事件选择长连接</div>
       <div>配置底部自定义栏 4 组</div>
     </section>
   </aside>
   <section class="panel">
-    <h2>先填这 5 项</h2>
-    <p class="note">安装目录是 sy-feishu-connect 工具放在哪里；Codex 要操作的项目目录，是你希望飞书里的 Codex 去查看、修改、运行的业务项目。两者通常不是同一个目录。</p>
+    <h2>填写配置</h2>
+    <p class="note">只填和你有关的内容。不要再纠结安装目录；npm 已经负责安装工具了。</p>
     <form method="post" action="/run">
-      <label>安装目录</label>
-      <div class="path-row">
-        <input id="install_dir" name="install_dir" value="{html.escape(str(DEFAULT_INSTALL_DIR))}">
-        <button class="pick" type="button" onclick="chooseDir('install_dir')" title="选择安装目录">...</button>
-      </div>
-      <p class="hint">这是 sy-feishu-connect 工具自己的目录，通常不用改。里面会生成 config.toml 和 bin/sy-feishu-codex。</p>
-      <label>项目名称</label>
-      <input name="project_name" value="my-project">
-      <p class="hint">只是报告里显示用，默认 my-project 即可。</p>
+      <label>配置文件位置</label>
+      <input name="config_file" value="{html.escape(str(DEFAULT_CONFIG_FILE))}">
+      <p class="hint">不懂就保持默认。</p>
+
       <label>Codex 要操作的项目目录</label>
       <div class="path-row">
         <input id="work_dir" name="work_dir" value="" placeholder="请选择你的业务项目，比如 /Users/you/code/my-app">
         <button class="pick" type="button" onclick="chooseDir('work_dir')" title="选择 Codex 要操作的项目目录">...</button>
       </div>
-      <p class="hint">飞书里发给 Codex 的任务，会在这个目录里执行。不要选 sy-feishu-connect，除非你就是想让 Codex 修改这个工具本身。</p>
+      <p class="hint">飞书里的任务会在这个目录里执行。这里填你的真实代码项目路径。</p>
+
       <label>飞书 App ID</label>
       <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
       <p class="hint">飞书开放平台 -> 应用后台 -> 凭据与基础信息。</p>
+
       <label>飞书 App Secret</label>
       <input name="app_secret" type="password" placeholder="只会写入本机 config.toml">
+
+      <label>你的姓名</label>
+      <input name="operator_name" placeholder="用于统计是谁安装/使用">
+
+      <label>你的工号</label>
+      <input name="employee_id" placeholder="可空">
+
+      <label>统计上报地址</label>
+      <input name="report_url" placeholder="可空，例如 n8n webhook 或公司日志接口">
+      <p class="hint">不填也能用，统计只保存在本机。普通用户不需要推 GitHub。</p>
+
       <div class="actions">
-        <button type="submit">一键检查、编译并生成配置</button>
+        <button type="submit">一键检查并生成配置</button>
         <a class="secondary" href="{REPORT_FILE.as_uri() if REPORT_FILE.exists() else '#'}">打开上次报告</a>
       </div>
     </form>
@@ -478,9 +425,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/choose-dir"):
             query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             current = query.get("current", [""])[0]
-            target = query.get("target", [""])[0]
-            chosen = choose_directory(current, target)
-            self._send_json({"path": chosen or ""})
+            self._send_json({"path": choose_directory(current) or ""})
             return
         self._send_html(home_page())
 
@@ -521,6 +466,7 @@ def find_port() -> int:
 
 
 def main() -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     port = find_port()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"

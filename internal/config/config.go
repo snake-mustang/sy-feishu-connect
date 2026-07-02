@@ -14,6 +14,7 @@ type Config struct {
 	Feishu FeishuConfig `toml:"feishu"`
 	Codex  CodexConfig  `toml:"codex"`
 	Bridge BridgeConfig `toml:"bridge"`
+	Usage  UsageConfig  `toml:"usage"`
 	Log    LogConfig    `toml:"log"`
 }
 
@@ -43,6 +44,12 @@ type BridgeConfig struct {
 	DataDir       string `toml:"data_dir"`
 	QueueMessages bool   `toml:"queue_messages"`
 	MaxReplyChars int    `toml:"max_reply_chars"`
+}
+
+type UsageConfig struct {
+	OperatorName string `toml:"operator_name"`
+	EmployeeID   string `toml:"employee_id"`
+	ReportURL    string `toml:"report_url"`
 }
 
 type LogConfig struct {
@@ -138,6 +145,9 @@ func (c *Config) Normalize(baseDir string) error {
 	if c.Bridge.MaxReplyChars <= 0 {
 		c.Bridge.MaxReplyChars = 3500
 	}
+	c.Usage.OperatorName = strings.TrimSpace(c.Usage.OperatorName)
+	c.Usage.EmployeeID = strings.TrimSpace(c.Usage.EmployeeID)
+	c.Usage.ReportURL = strings.TrimSpace(os.ExpandEnv(c.Usage.ReportURL))
 	if c.Log.Level == "" {
 		c.Log.Level = "info"
 	}

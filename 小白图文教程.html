@@ -12,11 +12,10 @@
       --line: #d8e2ee;
       --soft: #f6f9fc;
       --blue: #2563eb;
-      --cyan: #0891b2;
       --green: #16803c;
       --orange: #b45309;
       --red: #b42318;
-      --purple: #6d28d9;
+      --cyan: #0891b2;
       --shadow: 0 18px 50px rgba(23, 32, 51, .12);
     }
     * { box-sizing: border-box; }
@@ -199,40 +198,29 @@
       color: var(--muted);
       font-size: 13px;
     }
-    .screenshot {
-      margin: 18px 0;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #f8fafc;
-    }
-    .screenshot img { display: block; width: 100%; }
-    .screenshot .caption { margin: 0; padding: 9px 12px; border-top: 1px solid var(--line); }
-    .pill {
-      display: inline-block;
-      margin: 4px 6px 4px 0;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid #c7ddfb;
-      background: #eef6ff;
-      color: #155eaa;
-      font-size: 12px;
-      font-weight: 750;
-    }
-    .checklist {
+    .terminal {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin: 16px 0;
     }
-    .check {
-      padding: 10px 12px;
-      border: 1px solid #c7e5d0;
+    .terminal-row {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
       border-radius: 8px;
-      background: #f3fbf5;
-      font-size: 14px;
+      background: #fbfdff;
     }
-    .check::before { content: "✓"; color: var(--green); font-weight: 900; margin-right: 7px; }
+    .terminal-row strong {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+    }
     .menu-tree {
       display: grid;
       gap: 12px;
@@ -251,6 +239,20 @@
       font-size: 18px;
     }
     .menu-group ul { margin: 0; padding: 12px 18px 14px 34px; }
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .check {
+      padding: 10px 12px;
+      border: 1px solid #c7e5d0;
+      border-radius: 8px;
+      background: #f3fbf5;
+      font-size: 14px;
+    }
+    .check::before { content: "✓"; color: var(--green); font-weight: 900; margin-right: 7px; }
     footer {
       padding: 26px 56px;
       color: var(--muted);
@@ -268,13 +270,13 @@
 <body>
   <div class="page">
     <header>
-      <span class="badge">超级小白版 · 图文 + 半自动工具</span>
+      <span class="badge">超级小白版 · npm 安装 + 飞书后台图文</span>
       <h1>从 0 到 1：用飞书操作本地 Codex</h1>
-      <p class="lead">你只需要做三件事：第一次双击配置工具；去飞书后台完成权限和机器人菜单；以后每天双击启动机器人。</p>
+      <p class="lead">用户只需要记住三步：安装、检查、生成配置。剩下必须手动做的，只有飞书后台那 5 件事。</p>
       <div class="hero-cards">
-        <div class="hero-card"><b>第一次双击配置</b>检查 Codex、Git/Go/Make、下载源码、编译、生成配置文件。</div>
-        <div class="hero-card"><b>必须手动做</b>创建飞书应用、启用机器人、添加权限、发布应用、配置底部菜单。</div>
-        <div class="hero-card"><b>以后双击启动</b>双击“启动机器人”后保持窗口打开，飞书就能调用 Codex。</div>
+        <div class="hero-card"><b>1. 安装</b><code>npm install -g github:snake-mustang/sy-feishu-connect</code></div>
+        <div class="hero-card"><b>2. 检查</b><code>sy-feishu-connect doctor</code></div>
+        <div class="hero-card"><b>3. 配置并启动</b><code>sy-feishu-connect setup</code><br><code>sy-feishu-connect start</code></div>
       </div>
     </header>
 
@@ -309,61 +311,69 @@
               <path d="M735 178 C630 238 280 238 97 178" fill="none" stroke="#0891b2" stroke-width="3" marker-end="url(#arrow)"/>
               <text x="400" y="244" text-anchor="middle" font-size="14" fill="#0891b2">结果回到飞书</text>
             </svg>
-            <div class="caption">核心理解：飞书只是入口，真正执行任务的是你本机的 Codex CLI。</div>
-          </div>
-          <div class="callout ok">
-            这里原本可以放飞书对话截图。为了保证用户下载仓库后离线打开不缺图，本教程主要使用内置 SVG 示意图。
+            <div class="caption">核心理解：飞书只是入口，真正执行任务的是你电脑上的 Codex CLI。</div>
           </div>
         </section>
 
-        <section id="auto-tool">
-          <h2>1. 第一次：双击配置工具</h2>
-          <p>先打开完整的 <code>sy-feishu-connect</code> 文件夹。macOS 双击 <code>双击打开配置工具.command</code>，Windows 双击 <code>双击打开配置工具.bat</code>。第一次使用先双击配置工具，它会启动本地网页配置向导，并帮用户做这些事：</p>
-          <div class="grid-3">
-            <div class="card"><h3>检查</h3><p>检查 <code>codex</code>、<code>git</code>、<code>go</code> 是否可用；有 <code>make</code> 就用，没有也能用 <code>go build</code>。</p></div>
-            <div class="card"><h3>下载和编译</h3><p>自动 clone 或更新 <code>sy-feishu-connect</code>，并编译出可执行文件。</p></div>
-            <div class="card"><h3>生成配置</h3><p>目录右侧有 <code>...</code> 按钮可直接选择文件夹，再填写 App ID、App Secret，自动写入 <code>config.toml</code>。</p></div>
-          </div>
-          <h3>运行方式</h3>
-          <pre><code>macOS：双击仓库根目录里的 双击打开配置工具.command
-Windows：双击仓库根目录里的 双击打开配置工具.bat
-浏览器会自动打开：http://127.0.0.1:随机端口/</code></pre>
-          <div class="callout ok"><b>目录怎么选：</b>安装目录是 <code>sy-feishu-connect</code> 工具自己的目录，通常不用改；<b>Codex 要操作的项目目录</b> 是你希望飞书里的 Codex 去查看、修改、运行的业务项目，例如 <code>/Users/you/code/my-web-app</code>。不要选 <code>sy-feishu-connect</code>，除非你就是想让 Codex 修改这个工具本身。</div>
-          <div class="callout warn">不要把双击入口单独拖到桌面或上一层目录运行。它旁边需要有 <code>setup-gui.py</code>。如果看到 <code>can't open file ... setup-gui.py</code>，说明双击入口放错位置了，请进入完整的 <code>sy-feishu-connect</code> 文件夹再双击。</div>
-          <div class="callout warn">工具不能替你登录飞书后台，也不能替你点击飞书权限。飞书后台的配置还是要手动做。</div>
+        <section id="install">
+          <h2>1. 先装好工具</h2>
+          <p>打开终端，复制下面这一行，按回车。</p>
+          <pre><code>npm install -g github:snake-mustang/sy-feishu-connect</code></pre>
+          <div class="callout warn">如果提示没有 <code>npm</code>，先安装 Node.js。管理员发布 npm 包之前，本地测试可以在仓库目录运行 <code>npm link</code>。</div>
           <div class="diagram">
-            <svg viewBox="0 0 930 260" role="img" aria-label="自动工具能做什么">
+            <svg viewBox="0 0 920 210" role="img" aria-label="安装流程">
               <defs><marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#16803c"/></marker></defs>
-              <rect x="25" y="38" width="170" height="78" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
-              <text x="110" y="72" text-anchor="middle" font-size="17" font-weight="800">检查环境</text>
-              <text x="110" y="97" text-anchor="middle" font-size="13" fill="#5e6b7d">codex / git / go</text>
-              <rect x="250" y="38" width="170" height="78" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
-              <text x="335" y="72" text-anchor="middle" font-size="17" font-weight="800">下载源码</text>
-              <text x="335" y="97" text-anchor="middle" font-size="13" fill="#5e6b7d">clone / pull</text>
-              <rect x="475" y="38" width="170" height="78" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
-              <text x="560" y="72" text-anchor="middle" font-size="17" font-weight="800">编译程序</text>
-              <text x="560" y="97" text-anchor="middle" font-size="13" fill="#5e6b7d">make build</text>
-              <rect x="700" y="38" width="170" height="78" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
-              <text x="785" y="72" text-anchor="middle" font-size="17" font-weight="800">写配置</text>
-              <text x="785" y="97" text-anchor="middle" font-size="13" fill="#5e6b7d">config.toml</text>
-              <line x1="195" y1="77" x2="244" y2="77" stroke="#16803c" stroke-width="3" marker-end="url(#arrow2)"/>
-              <line x1="420" y1="77" x2="469" y2="77" stroke="#16803c" stroke-width="3" marker-end="url(#arrow2)"/>
-              <line x1="645" y1="77" x2="694" y2="77" stroke="#16803c" stroke-width="3" marker-end="url(#arrow2)"/>
-              <rect x="110" y="158" width="710" height="62" rx="8" fill="#fff8ed" stroke="#fed7aa"/>
-              <text x="465" y="185" text-anchor="middle" font-size="17" font-weight="800">剩下的：去飞书后台手动点权限、事件、发布、底部菜单</text>
-              <text x="465" y="209" text-anchor="middle" font-size="13" fill="#5e6b7d">这是飞书平台限制，必须由用户在后台完成</text>
+              <rect x="40" y="60" width="190" height="80" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
+              <text x="135" y="94" text-anchor="middle" font-size="18" font-weight="800">安装 Node.js</text>
+              <text x="135" y="120" text-anchor="middle" font-size="13" fill="#5e6b7d">得到 npm 命令</text>
+              <rect x="310" y="60" width="245" height="80" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
+              <text x="432" y="94" text-anchor="middle" font-size="18" font-weight="800">npm install -g</text>
+              <text x="432" y="120" text-anchor="middle" font-size="13" fill="#5e6b7d">安装 sy-feishu-connect</text>
+              <rect x="635" y="60" width="230" height="80" rx="8" fill="#effaf3" stroke="#c7e5d0"/>
+              <text x="750" y="94" text-anchor="middle" font-size="18" font-weight="800">全局命令可用</text>
+              <text x="750" y="120" text-anchor="middle" font-size="13" fill="#5e6b7d">sy-feishu-connect</text>
+              <line x1="230" y1="100" x2="304" y2="100" stroke="#16803c" stroke-width="3" marker-end="url(#arrow2)"/>
+              <line x1="555" y1="100" x2="629" y2="100" stroke="#16803c" stroke-width="3" marker-end="url(#arrow2)"/>
             </svg>
           </div>
         </section>
 
+        <section id="doctor">
+          <h2>2. 检查是否可用</h2>
+          <p>复制这一行：</p>
+          <pre><code>sy-feishu-connect doctor</code></pre>
+          <p>你希望看到：</p>
+          <pre><code>✅ Node.js
+✅ Codex CLI
+✅ sy-feishu-connect core</code></pre>
+          <div class="grid-3">
+            <div class="card"><h3>Node.js</h3><p>负责运行全局命令。</p></div>
+            <div class="card"><h3>Codex CLI</h3><p>真正执行开发任务。</p></div>
+            <div class="card"><h3>Core</h3><p>负责连接飞书和 Codex。</p></div>
+          </div>
+        </section>
+
+        <section id="setup">
+          <h2>3. 生成配置</h2>
+          <p>复制这一行：</p>
+          <pre><code>sy-feishu-connect setup</code></pre>
+          <div class="terminal">
+            <div class="terminal-row"><strong>1</strong><div><b>配置文件保存在哪里</b><br>不懂就直接回车，默认保存到 <code>~/.sy-feishu-connect/config.toml</code>。</div></div>
+            <div class="terminal-row"><strong>2</strong><div><b>Codex 要操作的项目目录</b><br>填你的业务项目路径，例如 <code>/Users/you/code/my-web-app</code>。</div></div>
+            <div class="terminal-row"><strong>3</strong><div><b>App ID / App Secret</b><br>从飞书后台「凭据与基础信息」复制。</div></div>
+            <div class="terminal-row"><strong>4</strong><div><b>姓名 / 工号 / 统计上报地址</b><br>用于统计是谁在用；没有上报地址可以直接回车。</div></div>
+          </div>
+          <div class="callout ok">配置生成后，先去飞书后台做下面 5 件事，再运行 <code>sy-feishu-connect start</code>。</div>
+        </section>
+
         <section id="manual-feishu">
-          <h2>2. 飞书后台必须手动做的 5 件事</h2>
+          <h2>4. 飞书后台必须手动做的 5 件事</h2>
           <div class="step-list">
             <div class="step"><div><b>创建企业自建应用</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，创建企业自建应用，名称建议填 <code>Codex 助手</code>。</div></div>
-            <div class="step"><div><b>启用机器人</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「应用能力」->「机器人」。启用后设置头像和名称。</div></div>
-            <div class="step"><div><b>复制 App ID 和 App Secret</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「凭据与基础信息」。这两个值要填进配置工具。</div></div>
-            <div class="step"><div><b>添加权限、事件和回调</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，配置权限管理、事件与回调；订阅方式选长连接，改完后记得发布应用。</div></div>
-            <div class="step"><div><b>配置底部自定义栏</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用能力 -> 机器人 -> 机器人自定义菜单。推荐配置 4 个菜单组。</div></div>
+            <div class="step"><div><b>启用机器人</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「应用能力」->「机器人」。</div></div>
+            <div class="step"><div><b>复制 App ID 和 App Secret</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「凭据与基础信息」。</div></div>
+            <div class="step"><div><b>添加权限和事件</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，添加消息权限；事件与回调选择长连接，订阅 <code>im.message.receive_v1</code>。</div></div>
+            <div class="step"><div><b>发布应用并配置底部栏</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，发布新版本，再到机器人自定义菜单配置 4 组底部栏。</div></div>
           </div>
           <div class="diagram">
             <svg viewBox="0 0 900 310" role="img" aria-label="飞书后台操作路线图">
@@ -391,7 +401,7 @@ Windows：双击仓库根目录里的 双击打开配置工具.bat
         </section>
 
         <section id="permissions">
-          <h2>3. 权限、事件、回调照着填</h2>
+          <h2>5. 权限和事件照着填</h2>
           <h3>权限管理里添加</h3>
           <table>
             <thead><tr><th>权限</th><th>为什么要它</th></tr></thead>
@@ -399,93 +409,24 @@ Windows：双击仓库根目录里的 双击打开配置工具.bat
               <tr><td><code>im:message.p2p_msg:readonly</code></td><td>接收单聊消息。</td></tr>
               <tr><td><code>im:message.group_at_msg:readonly</code></td><td>接收群聊 @机器人消息。</td></tr>
               <tr><td><code>im:message:send_as_bot</code></td><td>机器人把 Codex 结果发回飞书。</td></tr>
-              <tr><td><code>im:chat.members:read</code></td><td>可选，用于群成员识别和 @某人。</td></tr>
+              <tr><td><code>im:message:reaction</code></td><td>可选，给消息加处理中/完成表情。</td></tr>
             </tbody>
           </table>
           <h3>事件与回调里添加</h3>
           <div class="grid-2">
-            <div class="card"><h3>事件配置</h3><p>订阅方式：使用长连接接收事件</p><pre><code>im.message.receive_v1</code></pre></div>
-            <div class="card"><h3>回调配置</h3><p>订阅方式：使用长连接接收事件</p><pre><code>card.action.trigger</code></pre></div>
+            <div class="card"><h3>订阅方式</h3><p>选择：使用长连接接收事件</p></div>
+            <div class="card"><h3>事件</h3><pre><code>im.message.receive_v1</code></pre></div>
           </div>
-          <div class="callout warn">飞书后台改完权限、事件、回调以后，一定要去「版本管理与发布」发布新版本。</div>
-        </section>
-
-        <section id="config">
-          <h2>4. 配置文件只需要看懂 3 个值</h2>
-          <p>如果你用了半自动工具，它会帮你生成这个配置。如果手动写，大概长这样：</p>
-          <pre><code>[feishu]
-app_id = "cli_xxxxxxxxxxxxx"
-app_secret = "xxxxxxxxxxxxxxxxxxxxx"
-domain = "feishu"
-require_mention = true
-allow_users = "*"
-allow_chats = "*"
-working_emoji = "OnIt"
-done_emoji = "DONE"
-
-[codex]
-work_dir = "/Users/you/code/my-project"
-cli_path = "codex"
-model = ""
-reasoning_effort = ""
-mode = "suggest"
-codex_home = ""
-turn_timeout = "30m"
-
-[bridge]
-data_dir = "./data"
-queue_messages = true
-max_reply_chars = 3500
-
-[log]
-level = "info"</code></pre>
-          <div class="diagram">
-            <svg viewBox="0 0 900 280" role="img" aria-label="配置文件重点字段">
-              <rect x="35" y="35" width="830" height="210" rx="8" fill="#0f172a" stroke="#0f172a"/>
-              <text x="65" y="80" font-size="18" fill="#dbeafe">work_dir = "/Users/you/code/my-project"</text>
-              <text x="65" y="135" font-size="18" fill="#dbeafe">app_id = "cli_xxxxxxxxxxxxx"</text>
-              <text x="65" y="190" font-size="18" fill="#dbeafe">app_secret = "xxxxxxxxxxxxxxxxxxxxx"</text>
-              <rect x="535" y="55" width="290" height="42" rx="8" fill="#eff6ff"/>
-              <text x="680" y="82" text-anchor="middle" font-size="15" fill="#1d4ed8" font-weight="800">你的本地项目路径</text>
-              <rect x="535" y="110" width="290" height="42" rx="8" fill="#f0fdf4"/>
-              <text x="680" y="137" text-anchor="middle" font-size="15" fill="#16803c" font-weight="800">飞书后台复制 App ID</text>
-              <rect x="535" y="165" width="290" height="42" rx="8" fill="#fff7ed"/>
-              <text x="680" y="192" text-anchor="middle" font-size="15" fill="#b45309" font-weight="800">飞书后台复制 App Secret</text>
-            </svg>
-          </div>
-        </section>
-
-        <section id="run">
-          <h2>5. 以后：双击启动机器人</h2>
-          <div class="grid-2">
-            <div class="card">
-              <h3>小白启动</h3>
-              <pre><code>macOS：双击启动机器人.command
-Windows：双击启动机器人.bat</code></pre>
-              <p>启动后会出现终端窗口，不要关闭它。</p>
-            </div>
-            <div class="card">
-              <h3>命令行启动</h3>
-              <pre><code>macOS/Linux:
-./bin/sy-feishu-codex -config config.toml
-
-Windows:
-bin\sy-feishu-codex.exe -config config.toml</code></pre>
-              <p>适合开发者排查问题。</p>
-            </div>
-          </div>
-          <h3>在飞书里发什么</h3>
-          <pre><code>你好，帮我看一下这个项目是做什么的</code></pre>
-          <pre><code>@Codex助手 帮我检查一下最近一次提交</code></pre>
+          <div class="callout warn">飞书后台改完权限、事件以后，一定要去「版本管理与发布」发布新版本。</div>
         </section>
 
         <section id="menu">
           <h2>6. 底部自定义栏推荐配置 4 个</h2>
-          <p>这是给用户看的快捷菜单。路径一般是：飞书应用后台 ->「应用能力」->「机器人」->「机器人自定义菜单」。</p>
+          <p>路径一般是：飞书应用后台 ->「应用能力」->「机器人」->「机器人自定义菜单」。</p>
           <div class="menu-tree">
             <div class="menu-group"><h3>1. 会话</h3><ul><li>新建会话：<code>/new</code></li><li>会话列表：<code>/sessions</code></li><li>当前会话：<code>/status</code></li></ul></div>
             <div class="menu-group"><h3>2. 执行</h3><ul><li>停止执行：<code>/stop</code></li><li>当前状态：<code>/status</code></li><li>工作目录：<code>/pwd</code></li></ul></div>
-            <div class="menu-group"><h3>3. 设置</h3><ul><li>模式：<code>/mode</code></li><li>模型：<code>/model</code></li><li>帮助：<code>/help</code></li><li>统计：<code>/stats</code></li><li>我的 ID：<code>/whoami</code></li></ul></div>
+            <div class="menu-group"><h3>3. 设置</h3><ul><li>模式：<code>/mode</code></li><li>模型：<code>/model</code></li><li>帮助：<code>/help</code></li></ul></div>
             <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考：<code>/display full</code></li><li>关闭思考：<code>/display compact</code></li><li>极简模式：<code>/display quiet</code></li></ul></div>
           </div>
           <div class="diagram">
@@ -506,14 +447,60 @@ bin\sy-feishu-codex.exe -config config.toml</code></pre>
               <text x="780" y="176" text-anchor="middle" font-size="12" fill="#5e6b7d">思考 / 关闭 / 极简</text>
             </svg>
           </div>
-          <div class="callout">如果飞书后台不支持多级菜单，就把 4 个作为一级菜单；如果支持多级菜单，就按上面的分组放二级按钮。</div>
+        </section>
+
+        <section id="stats">
+          <h2>7. 怎么统计是谁用的</h2>
+          <div class="grid-2">
+            <div class="card">
+              <h3>本机统计</h3>
+              <p>自动保存在 <code>data/usage_events.jsonl</code> 和 <code>data/usage_summary.json</code>。</p>
+              <pre><code>/stats
+/whoami</code></pre>
+            </div>
+            <div class="card">
+              <h3>远程统计</h3>
+              <p><code>setup</code> 里填写统计上报地址后，每次使用会 POST 一条 JSON 到你的日志接口。</p>
+              <p>推荐：n8n webhook、自己的 API、serverless function、日志收集服务。</p>
+            </div>
+          </div>
+          <div class="diagram">
+            <svg viewBox="0 0 900 250" role="img" aria-label="统计流程图">
+              <defs><marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0891b2"/></marker></defs>
+              <rect x="45" y="72" width="170" height="78" rx="8" fill="#eff6ff" stroke="#bdd3fb"/>
+              <text x="130" y="104" text-anchor="middle" font-size="17" font-weight="800">用户使用</text>
+              <text x="130" y="128" text-anchor="middle" font-size="13" fill="#5e6b7d">飞书消息/命令</text>
+              <rect x="280" y="72" width="190" height="78" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/>
+              <text x="375" y="104" text-anchor="middle" font-size="17" font-weight="800">本机记录</text>
+              <text x="375" y="128" text-anchor="middle" font-size="13" fill="#5e6b7d">jsonl + summary</text>
+              <rect x="535" y="72" width="165" height="78" rx="8" fill="#fff7ed" stroke="#fed7aa"/>
+              <text x="618" y="104" text-anchor="middle" font-size="17" font-weight="800">HTTP 上报</text>
+              <text x="618" y="128" text-anchor="middle" font-size="13" fill="#5e6b7d">可选</text>
+              <rect x="765" y="72" width="110" height="78" rx="8" fill="#f5f3ff" stroke="#ddd6fe"/>
+              <text x="820" y="104" text-anchor="middle" font-size="17" font-weight="800">表格/库</text>
+              <text x="820" y="128" text-anchor="middle" font-size="13" fill="#5e6b7d">统计结果</text>
+              <line x1="215" y1="111" x2="274" y2="111" stroke="#0891b2" stroke-width="3" marker-end="url(#arrow3)"/>
+              <line x1="470" y1="111" x2="529" y2="111" stroke="#0891b2" stroke-width="3" marker-end="url(#arrow3)"/>
+              <line x1="700" y1="111" x2="759" y2="111" stroke="#0891b2" stroke-width="3" marker-end="url(#arrow3)"/>
+            </svg>
+          </div>
+          <div class="callout ok">普通用户不需要推 GitHub，也不应该碰 GitHub main。统计走 HTTP 日志接口。</div>
+        </section>
+
+        <section id="run">
+          <h2>8. 启动和测试</h2>
+          <p>飞书后台配置完成后：</p>
+          <pre><code>sy-feishu-connect start</code></pre>
+          <p>终端窗口不要关。然后在飞书里发：</p>
+          <pre><code>你好，帮我看一下这个项目是做什么的</code></pre>
+          <pre><code>@Codex助手 帮我检查一下最近一次提交</code></pre>
         </section>
 
         <section id="troubleshoot">
-          <h2>7. 出问题先看这张排查图</h2>
+          <h2>9. 出问题先看这张排查图</h2>
           <div class="diagram">
             <svg viewBox="0 0 960 420" role="img" aria-label="问题排查流程图">
-              <defs><marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b45309"/></marker></defs>
+              <defs><marker id="arrow4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#b45309"/></marker></defs>
               <rect x="390" y="25" width="180" height="54" rx="8" fill="#fff8ed" stroke="#fed7aa"/>
               <text x="480" y="58" text-anchor="middle" font-size="18" font-weight="800">飞书没回复？</text>
               <rect x="70" y="130" width="190" height="70" rx="8" fill="#fff" stroke="#d8e2ee"/>
@@ -530,33 +517,31 @@ bin\sy-feishu-codex.exe -config config.toml</code></pre>
               <text x="835" y="184" text-anchor="middle" font-size="12" fill="#5e6b7d">@机器人</text>
               <rect x="230" y="270" width="230" height="70" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/>
               <text x="345" y="300" text-anchor="middle" font-size="16" font-weight="800">Codex 能单独运行吗</text>
-              <text x="345" y="324" text-anchor="middle" font-size="12" fill="#5e6b7d">终端运行 codex</text>
+              <text x="345" y="324" text-anchor="middle" font-size="12" fill="#5e6b7d">运行 codex --version</text>
               <rect x="520" y="270" width="230" height="70" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/>
               <text x="635" y="300" text-anchor="middle" font-size="16" font-weight="800">配置路径对吗</text>
               <text x="635" y="324" text-anchor="middle" font-size="12" fill="#5e6b7d">work_dir / app_id / secret</text>
-              <line x1="480" y1="80" x2="165" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow3)"/>
-              <line x1="480" y1="80" x2="395" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow3)"/>
-              <line x1="480" y1="80" x2="625" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow3)"/>
-              <line x1="480" y1="80" x2="835" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow3)"/>
-              <line x1="395" y1="202" x2="345" y2="266" stroke="#16803c" stroke-width="3" marker-end="url(#arrow3)"/>
-              <line x1="625" y1="202" x2="635" y2="266" stroke="#16803c" stroke-width="3" marker-end="url(#arrow3)"/>
+              <line x1="480" y1="80" x2="165" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow4)"/>
+              <line x1="480" y1="80" x2="395" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow4)"/>
+              <line x1="480" y1="80" x2="625" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow4)"/>
+              <line x1="480" y1="80" x2="835" y2="126" stroke="#b45309" stroke-width="3" marker-end="url(#arrow4)"/>
+              <line x1="395" y1="202" x2="345" y2="266" stroke="#16803c" stroke-width="3" marker-end="url(#arrow4)"/>
+              <line x1="625" y1="202" x2="635" y2="266" stroke="#16803c" stroke-width="3" marker-end="url(#arrow4)"/>
             </svg>
           </div>
         </section>
 
         <section id="final-check">
-          <h2>8. 最后检查清单</h2>
+          <h2>10. 最后检查清单</h2>
           <div class="checklist">
-            <div class="check">Codex CLI 本机能正常运行</div>
-            <div class="check">git、go、make 能运行</div>
-            <div class="check">sy-feishu-codex 已编译成功</div>
-            <div class="check">Codex 要操作的项目目录是你的业务项目</div>
+            <div class="check">已执行 npm install -g github:snake-mustang/sy-feishu-connect</div>
+            <div class="check">doctor 三项都是通过</div>
+            <div class="check">setup 已生成配置</div>
             <div class="check">飞书应用已启用机器人</div>
             <div class="check">权限已添加并发布</div>
             <div class="check">事件 im.message.receive_v1 已添加</div>
-            <div class="check">回调 card.action.trigger 已添加</div>
-            <div class="check">app_id 和 app_secret 已填入</div>
-            <div class="check">群聊里记得 @机器人</div>
+            <div class="check">底部自定义栏已配置 4 组</div>
+            <div class="check">start 终端窗口保持打开</div>
             <div class="check">用 /stats 查看使用统计</div>
             <div class="check">让用户用 /whoami 登记身份</div>
           </div>
@@ -566,19 +551,20 @@ bin\sy-feishu-codex.exe -config config.toml</code></pre>
       <aside class="toc">
         <h2>快速导航</h2>
         <a href="#big-picture">0. 看懂整体流程</a>
-        <a href="#auto-tool">1. 半自动工具</a>
-        <a href="#manual-feishu">2. 飞书后台手动项</a>
-        <a href="#permissions">3. 权限事件回调</a>
-        <a href="#config">4. 配置文件</a>
-        <a href="#run">5. 启动测试</a>
+        <a href="#install">1. 安装</a>
+        <a href="#doctor">2. 检查</a>
+        <a href="#setup">3. 生成配置</a>
+        <a href="#manual-feishu">4. 飞书后台</a>
+        <a href="#permissions">5. 权限事件</a>
         <a href="#menu">6. 底部自定义栏</a>
-        <a href="#troubleshoot">7. 排查图</a>
-        <a href="#final-check">8. 检查清单</a>
+        <a href="#stats">7. 使用统计</a>
+        <a href="#run">8. 启动测试</a>
+        <a href="#troubleshoot">9. 排查图</a>
       </aside>
     </main>
 
     <footer>
-      这份 HTML 适合直接打开，也适合复制到飞书文档继续编辑。配套入口：双击打开配置工具.command、双击启动机器人.command。
+      这份 HTML 可以直接打开，也可以复制到飞书文档继续编辑。推荐用户按 npm 三步走：install、doctor、setup。
     </footer>
   </div>
 </body>

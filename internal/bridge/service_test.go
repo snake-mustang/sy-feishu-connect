@@ -2,12 +2,16 @@ package bridge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 type fakeAgent struct {
@@ -127,6 +131,46 @@ func TestStatsAndWhoamiCommands(t *testing.T) {
 	joined := strings.Join(platform.sent, "\n")
 	if !strings.Contains(joined, "使用统计") || !strings.Contains(joined, "ou_user") || !strings.Contains(joined, "你的飞书用户标识") {
 		t.Fatalf("sent=%#v", platform.sent)
+	}
+}
+
+func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
+	received := make(chan UsageEvent, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		if r.Method != http.MethodPost {
+			t.Errorf("method=%s", r.Method)
+		}
+		if got := r.Header.Get("Content-Type"); got != "application/json" {
+			t.Errorf("content-type=%s", got)
+		}
+		var event UsageEvent
+		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+			t.Errorf("decode event: %v", err)
+		}
+		received <- event
+	}))
+	defer server.Close()
+
+	tracker, err := OpenUsageTracker(t.TempDir(), UsageOptions{
+		OperatorName: "Alice",
+		EmployeeID:   "E001",
+		ReportURL:    server.URL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tracker.Record(UsageEvent{SessionKey: "s1", UserID: "ou_user", Kind: "task", Success: true, TextChars: 3}); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case event := <-received:
+		if event.OperatorName != "Alice" || event.EmployeeID != "E001" || event.UserID != "ou_user" {
+			t.Fatalf("event=%#v", event)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for remote usage report")
 	}
 }
 

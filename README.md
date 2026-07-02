@@ -1,163 +1,123 @@
 # sy-feishu-connect
 
-一个精简的飞书/Lark 到本机 Codex CLI 的远程桥接服务。它参考了 [chenhg5/cc-connect](https://github.com/chenhg5/cc-connect) 的设计目标：把运行在你机器上的 AI Agent 桥接到日常聊天工具里；本项目只保留“飞书消息 -> 本机 Codex -> 飞书回复”这一条线。
+把飞书/Lark 机器人连接到本机 Codex CLI。用户在飞书里发消息，本机 `sy-feishu-connect` 收到后交给 Codex 执行，再把结果回到飞书。
 
-## 新手推荐：双击使用
-
-如果你不熟悉命令行，下载仓库后按这个顺序来：
-
-第一次配置时，先打开完整的 `sy-feishu-connect` 文件夹，再按你的系统双击：
+核心链路：
 
 ```text
-macOS：双击打开配置工具.command
-Windows：双击打开配置工具.bat
+飞书消息 -> sy-feishu-connect -> 本机 Codex CLI -> 你的项目目录 -> 飞书回复
 ```
 
-它会启动本地网页配置向导，并自动打开浏览器页面。安装目录和「Codex 要操作的项目目录」右侧都有 `...` 按钮，可以直接选择文件夹。安装目录是这个工具自己的目录；Codex 要操作的项目目录，是你希望飞书里的 Codex 去查看或修改的业务项目目录。
+## 新手只记 3 步
 
-注意：不要把双击入口单独拖到别的目录运行。它需要和 `setup-gui.py` 在同一个项目文件夹里；如果放错位置，脚本会尝试自动寻找 `sy-feishu-connect/setup-gui.py`，找不到时会给出提示。
-
-以后每天启动机器人时，按系统双击根目录里的：
-
-```text
-macOS：双击启动机器人.command
-Windows：双击启动机器人.bat
-```
-
-启动后会出现一个终端窗口。不要关闭它；窗口关闭后，飞书机器人就会停止。
-
-你仍然需要手动去飞书开放平台完成：创建应用、启用机器人、添加权限、配置事件回调、发布应用、配置底部自定义栏。
-
-详细图文版见：[小白图文教程.html](./小白图文教程.html)。
-
-## 功能
-
-- 飞书/Lark WebSocket 长连接，无需公网回调地址。
-- 私聊直接发送任务，群聊默认需要 @机器人。
-- 基于飞书 `open_id` / `chat_id` 的用户和群白名单。
-- 每个飞书聊天保存独立 Codex `thread_id`，支持重启后续聊。
-- 支持 `/new`、`/status`、`/sessions`、`/stats`、`/whoami`、`/help` 远程控制命令。
-- 通过 `codex exec --json` 调用本机 Codex CLI，支持 `suggest`、`auto-edit`、`yolo` 三种权限模式。
-
-## 准备
-
-1. 安装并登录 Codex CLI，确认本机可运行：
-
-   ```bash
-   codex exec --help
-   ```
-
-2. 创建飞书企业自建应用，启用机器人能力，并订阅事件：
-
-   - `im.message.receive_v1`
-
-3. 开启事件订阅的 WebSocket/长连接模式，并确保应用有发送消息权限。常用权限包括：
-
-   - `im:message`
-   - `im:message:send_as_bot`
-   - `im:message:reaction`
-
-完整飞书开放平台配置步骤见 [飞书/Lark 接入指南](./docs/feishu.md)。
-
-## 配置
-
-复制配置文件：
+### 1. 安装
 
 ```bash
-cp config.example.toml config.toml
+npm install -g github:snake-mustang/sy-feishu-connect
 ```
 
-填写：
-
-```toml
-[feishu]
-app_id = "cli_xxx"
-app_secret = "xxx"
-domain = "feishu"
-require_mention = true
-allow_users = "*"
-allow_chats = "*"
-
-[codex]
-work_dir = "/path/to/your/repo"
-mode = "suggest"
-```
-
-权限模式：
-
-- `suggest`: Codex 只读沙箱，适合资料研究、代码审查、问答。
-- `auto-edit`: Codex 可写工作区，适合让它改代码；审批策略为 `never`，因为聊天端没有交互式审批 IPC。
-- `yolo`: 跳过审批和沙箱，只适合你完全信任的隔离机器。
-
-## 运行
+以后如果发布到 npm 官方 registry，也可以改用更短的：
 
 ```bash
-make build
-./bin/sy-feishu-codex -config config.toml
+npm install -g sy-feishu-connect
 ```
 
-Windows 命令行：
-
-```bat
-go build -o bin\sy-feishu-codex.exe .\cmd\sy-feishu-codex
-bin\sy-feishu-codex.exe -config config.toml
-```
-
-开发运行：
+### 2. 检查是否可用
 
 ```bash
-make run
+sy-feishu-connect doctor
 ```
 
-## 飞书内使用
+看到 Node.js、Codex CLI、sy-feishu-connect core 都是 `✅`，就可以继续。
 
-私聊机器人：
+### 3. 生成配置
+
+```bash
+sy-feishu-connect setup
+```
+
+它会让你填写：
+
+- Codex 要操作的项目目录
+- 飞书 App ID
+- 飞书 App Secret
+- 姓名/工号，用于统计谁在用
+- 统计上报地址，可空
+
+默认会生成：
 
 ```text
-帮我审查这个仓库的测试覆盖风险
+~/.sy-feishu-connect/config.toml
 ```
 
-群聊：
+飞书后台配置完成后启动：
 
-```text
-@机器人 总结最近 5 个 commit 的主要变化
+```bash
+sy-feishu-connect start
 ```
 
-命令：
+## 飞书后台必须手动做
 
-```text
-/help
-/new
-/status
-/sessions
-/stats
-/whoami
-```
+进入 [飞书开放平台](https://open.feishu.cn/app)，创建企业自建应用，然后完成：
+
+1. 启用机器人能力。
+2. 在「凭据与基础信息」复制 `App ID` 和 `App Secret`。
+3. 在「权限管理」添加消息权限并发布。
+4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1`。
+5. 在「机器人自定义菜单」配置底部自定义栏。
+
+更小白的图文步骤见 [使用教程.md](./使用教程.md) 和 [小白图文教程.html](./小白图文教程.html)。
+
+## 推荐权限
+
+| 权限标识 | 用途 |
+| --- | --- |
+| `im:message.p2p_msg:readonly` | 接收用户发给机器人的单聊消息 |
+| `im:message.group_at_msg:readonly` | 接收群聊里 @机器人的消息 |
+| `im:message:send_as_bot` | 以机器人身份回复消息 |
+| `im:message:reaction` | 可选，给消息添加处理中/完成表情 |
+
+## 飞书底部自定义栏推荐
+
+| 分组 | 菜单项 |
+| --- | --- |
+| 会话 | 新建会话 `/new`、会话列表 `/sessions`、当前会话 `/status` |
+| 执行 | 停止执行 `/stop`、当前状态 `/status`、工作目录 `/pwd` |
+| 设置 | 模式 `/mode`、模型 `/model`、帮助 `/help` |
+| 显示 | 显示思考 `/display full`、关闭思考 `/display compact`、极简模式 `/display quiet` |
+
+当前已实现：`/help`、`/new`、`/status`、`/sessions`、`/stats`、`/whoami`、`/reset`。其余菜单项可以先作为产品入口预留。
 
 ## 使用统计
 
-服务会自动把使用记录保存在本机 `data` 目录：
+本机会保存：
 
 ```text
 data/usage_events.jsonl
 data/usage_summary.json
 ```
 
-在飞书里发送 `/stats` 可以查看按用户 `open_id` 汇总的使用次数、成功失败和最后使用时间。发送 `/whoami` 可以让用户看到自己的飞书用户标识，方便你把统计里的 `open_id` 对应到真实姓名。
+飞书里可用：
+
+```text
+/stats
+/whoami
+```
+
+如果在 `sy-feishu-connect setup` 里填写了统计上报地址，服务会把每次使用事件 `POST` 到该 HTTP 地址。推荐用 n8n webhook、自己的 API、日志收集服务或 serverless function 接收，再写入表格/数据库。普通用户不需要、也不应该推 GitHub main。
 
 ## 安全建议
 
-- 生产使用时不要把 `allow_users` 和 `allow_chats` 都设置成 `*`。
-- 默认使用 `suggest`，确认工作目录和权限后再开启 `auto-edit`。
-- 如果使用 `yolo`，建议把服务跑在隔离用户或隔离机器上。
-- `config.toml` 包含飞书密钥，已被 `.gitignore` 忽略。
+- `config.toml` 包含飞书密钥，不要提交到 Git。
+- 生产使用不要长期保持 `allow_users = "*"` 和 `allow_chats = "*"`。
+- 默认模式是 `suggest`，只读更稳；确认可信后再用 `auto-edit`。
+- `yolo` 只适合隔离机器或完全可信环境。
 
-## 与 cc-connect 的关系
+## 开发
 
-cc-connect 是一个完整的多平台、多 Agent 桥接项目。本项目基于它的目标和关键设计做了单线蒸馏：
-
-- 只保留 Feishu/Lark 平台。
-- 只保留 Codex CLI Agent。
-- 去掉 TUI、cron、多平台 relay、附件处理、交互卡片和多模型供应商管理。
-
-上游 README 标注为 MIT License；本项目代码为重新实现的精简版本。
+```bash
+make build
+make test
+node cli/sy-feishu-connect.js doctor
+npm pack --dry-run
+```

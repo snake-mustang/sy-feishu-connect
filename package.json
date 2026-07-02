@@ -1,0 +1,32 @@
+{
+  "name": "sy-feishu-connect",
+  "version": "0.1.0",
+  "description": "Connect Feishu/Lark messages to local Codex CLI.",
+  "license": "MIT",
+  "bin": {
+    "sy-feishu-connect": "cli/sy-feishu-connect.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "build": "go build -o native/sy-feishu-codex ./cmd/sy-feishu-codex",
+    "test": "go test ./...",
+    "pack:check": "npm pack --dry-run"
+  },
+  "files": [
+    "cli",
+    "scripts",
+    "cmd",
+    "internal",
+    "docs",
+    "config.example.toml",
+    "setup-gui.py",
+    "README.md",
+    "使用教程.md",
+    "小白图文教程.html",
+    "go.mod",
+    "go.sum"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

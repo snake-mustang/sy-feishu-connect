@@ -6,34 +6,32 @@ cd "$DIR" || exit 1
 echo "正在启动 sy-feishu-connect 飞书机器人..."
 echo
 
-if [ ! -f "$DIR/config.toml" ]; then
-  echo "没有找到 config.toml。"
-  echo "请先双击：双击打开配置工具.command"
+if ! command -v sy-feishu-connect >/dev/null 2>&1; then
+  echo "没有找到 sy-feishu-connect 命令。"
+  echo "请先在终端运行：npm install -g github:snake-mustang/sy-feishu-connect"
   echo
   read -r -p "按回车键退出..."
   exit 1
 fi
 
-if [ ! -x "$DIR/bin/sy-feishu-codex" ]; then
-  echo "没有找到可执行文件：bin/sy-feishu-codex"
-  echo "正在尝试自动编译..."
-  if ! make build; then
-    echo
-    echo "编译失败。请先双击：双击打开配置工具.command"
-    echo
-    read -r -p "按回车键退出..."
-    exit 1
-  fi
+CONFIG="$HOME/.sy-feishu-connect/config.toml"
+if [ ! -f "$CONFIG" ]; then
+  echo "没有找到配置文件：$CONFIG"
+  echo "请先运行：sy-feishu-connect setup"
+  echo "或者双击：双击打开配置工具.command"
+  echo
+  read -r -p "按回车键退出..."
+  exit 1
 fi
 
 echo "启动成功后，请不要关闭这个窗口。"
 echo "关闭窗口或按 Ctrl+C，机器人就会停止。"
 echo
-echo "配置文件：$DIR/config.toml"
-echo "启动命令：$DIR/bin/sy-feishu-codex -config $DIR/config.toml"
+echo "配置文件：$CONFIG"
+echo "启动命令：sy-feishu-connect start"
 echo
 
-"$DIR/bin/sy-feishu-codex" -config "$DIR/config.toml"
+sy-feishu-connect start
 
 echo
 echo "机器人已停止。"
