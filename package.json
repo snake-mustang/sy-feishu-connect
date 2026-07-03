@@ -16,6 +16,7 @@
     "cmd",
     "internal",
     "docs",
+    "docs/assets",
     "config.example.toml",
     "setup-gui.py",
     "README.md",

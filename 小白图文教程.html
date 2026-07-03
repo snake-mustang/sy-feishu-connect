@@ -193,6 +193,14 @@
       background: #fbfdff;
     }
     .diagram svg { width: 100%; height: auto; display: block; }
+    .screenshot {
+      margin: 16px 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .screenshot img { display: block; width: 100%; height: auto; }
     .caption {
       margin-top: 8px;
       color: var(--muted);
@@ -409,6 +417,9 @@ domain = "feishu"</code></pre>
           <h2>5. 权限和事件照着填</h2>
           <h3>权限管理里添加</h3>
           <p>更简单的方式：在「权限管理」点击「批量处理」->「批量导入」，直接粘贴下面这段 JSON。</p>
+          <div class="screenshot">
+            <img src="docs/assets/feishu-permission-bulk-import.png" alt="飞书权限批量导入示意图">
+          </div>
           <pre><code>{
   "scopes": {
     "tenant": [

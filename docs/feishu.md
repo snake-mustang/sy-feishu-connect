@@ -114,6 +114,8 @@ domain = "feishu"
 
 在飞书后台「权限管理」里，点击「批量处理」->「批量导入」，直接粘贴下面这段 JSON：
 
+![飞书权限批量导入示意图](./assets/feishu-permission-bulk-import.png)
+
 ```json
 {
   "scopes": {
