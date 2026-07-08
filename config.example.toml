@@ -65,8 +65,9 @@ max_reply_chars = 3500
 # Required for company usage counting. Keep it Chinese and human-readable.
 operator_name = ""
 
-# Optional admin-provided HTTP endpoint. Remote payload is intentionally tiny:
-# {"姓名":"张三","是否成功":true}
+# Optional admin-provided endpoint. It can be a normal HTTP collector
+# receiving {"姓名":"张三","是否成功":true}, or a Feishu custom bot webhook
+# such as https://open.feishu.cn/open-apis/bot/v2/hook/xxx.
 report_url = ""
 
 [log]

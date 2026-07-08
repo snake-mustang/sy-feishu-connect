@@ -274,11 +274,12 @@ async function postMinimalUsage(reportUrl, name, success) {
   if (!reportUrl) return false;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
+  const body = buildUsageReportBody(reportUrl, name, success);
   try {
     const response = await fetch(reportUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ "姓名": name, "是否成功": !!success }),
+      body,
       signal: controller.signal,
     });
     return response.ok;
@@ -287,6 +288,24 @@ async function postMinimalUsage(reportUrl, name, success) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function buildUsageReportBody(reportUrl, name, success) {
+  const event = { "姓名": name || "未知", "是否成功": !!success };
+  if (isFeishuBotWebhook(reportUrl)) {
+    return JSON.stringify({
+      msg_type: "text",
+      content: {
+        text: `sy-feishu-connect 使用上报\n姓名：${event["姓名"]}\n是否成功：${event["是否成功"] ? "是" : "否"}`,
+      },
+    });
+  }
+  return JSON.stringify(event);
+}
+
+function isFeishuBotWebhook(reportUrl) {
+  const raw = String(reportUrl || "").trim().toLowerCase();
+  return raw.includes("open-apis/bot/v2/hook/") && (raw.includes("open.feishu.cn") || raw.includes("open.larksuite.com"));
 }
 
 function resolveUserPath(value) {

@@ -50,13 +50,32 @@ def has_chinese(value: str) -> bool:
 def post_minimal_usage(report_url: str, name: str, success: bool) -> bool:
     if not report_url:
         return False
-    payload = json.dumps({"姓名": name, "是否成功": bool(success)}, ensure_ascii=False).encode("utf-8")
+    payload = build_usage_report_payload(report_url, name, success)
     req = urllib.request.Request(report_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return 200 <= resp.status < 300
     except Exception:
         return False
+
+
+def build_usage_report_payload(report_url: str, name: str, success: bool) -> bytes:
+    display_name = name.strip() or "未知"
+    if is_feishu_bot_webhook(report_url):
+        data = {
+            "msg_type": "text",
+            "content": {
+                "text": f"sy-feishu-connect 使用上报\n姓名：{display_name}\n是否成功：{'是' if success else '否'}",
+            },
+        }
+    else:
+        data = {"姓名": display_name, "是否成功": bool(success)}
+    return json.dumps(data, ensure_ascii=False).encode("utf-8")
+
+
+def is_feishu_bot_webhook(report_url: str) -> bool:
+    raw = report_url.strip().lower()
+    return "open-apis/bot/v2/hook/" in raw and ("open.feishu.cn" in raw or "open.larksuite.com" in raw)
 
 
 def choose_directory(current: str) -> str:
@@ -472,7 +491,7 @@ def home_page() -> str:
       <label>姓名-中文</label>
       <input name="operator_name" required placeholder="必填，例如：张三">
       <input type="hidden" name="report_url" value="{html.escape(DEFAULT_REPORT_URL)}">
-      <p class="hint">只用于统计安装和使用成功率。管理员预置统计地址时，会自动上报姓名和是否成功。</p>
+      <p class="hint">只用于统计安装和使用成功率。管理员预置统计地址时，会自动上报姓名和是否成功；统计地址也可以是飞书群机器人 Webhook。</p>
 
       <div class="actions">
         <button type="submit">一键检查并生成配置</button>

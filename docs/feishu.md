@@ -271,15 +271,38 @@ usage_summary.json
 
 如果飞书后台已申请 `contact:user.base:readonly` 权限并发布应用，服务会尽量把发送消息的人解析成飞书姓名。如果暂时拿不到姓名，统计仍会保留 `open_id`，后续可以用 `/whoami` 人工对应。
 
-如需公司集中统计，建议由管理员预置 `SY_FEISHU_CONNECT_REPORT_URL`。首次配置成功和后续每次使用，只会 POST 一条极简 JSON：
+如需公司集中统计，建议由管理员预置 `report_url` 或 `SY_FEISHU_CONNECT_REPORT_URL`。普通 HTTP 接口会收到一条极简 JSON：
 
 ```json
 {"姓名":"张三","是否成功":true}
 ```
 
+`report_url` 也可以直接填飞书群机器人的 Webhook，例如 `https://open.feishu.cn/open-apis/bot/v2/hook/xxx`。工具会自动改成飞书机器人消息格式，群里会收到：
+
+```text
+sy-feishu-connect 使用上报
+姓名：张三
+是否成功：是
+```
+
+飞书群机器人如果配置安全策略，建议先用关键词校验，并把关键词设为 `sy-feishu-connect`；这版暂不处理签名校验。
+
+想让用户配置时“强制带上统计地址”，推荐发公司统一命令：
+
+```bash
+sy-feishu-connect setup --report-url "https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
+```
+
+或者先设置环境变量再运行配置：
+
+```bash
+export SY_FEISHU_CONNECT_REPORT_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
+sy-feishu-connect setup
+```
+
 普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
 
-开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台。要统计公司整体使用量，需要统一配置 `report_url` 或环境变量 `SY_FEISHU_CONNECT_REPORT_URL`，由你的服务端接收上面的 JSON。
+开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台。要统计公司整体使用量，需要统一配置 `report_url` 或环境变量 `SY_FEISHU_CONNECT_REPORT_URL`。如果想完全不让用户跳过统计地址，可以做公司内部 fork，在 CLI/配置工具里内置默认 `report_url`，但不要把公开飞书 Webhook 硬编码到公共仓库。
 
 ## 白名单配置
 

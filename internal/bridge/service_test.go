@@ -449,6 +449,31 @@ func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
 	}
 }
 
+func TestUsageTrackerFormatsFeishuWebhookReports(t *testing.T) {
+	payload, err := marshalRemoteUsagePayload("https://open.feishu.cn/open-apis/bot/v2/hook/test-token", RemoteUsageEvent{
+		Name:    "张三",
+		Success: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event map[string]any
+	if err := json.Unmarshal(payload, &event); err != nil {
+		t.Fatal(err)
+	}
+	if event["msg_type"] != "text" {
+		t.Fatalf("event=%#v", event)
+	}
+	content, ok := event["content"].(map[string]any)
+	if !ok {
+		t.Fatalf("content=%#v", event["content"])
+	}
+	text, _ := content["text"].(string)
+	if !strings.Contains(text, "姓名：张三") || !strings.Contains(text, "是否成功：是") {
+		t.Fatalf("text=%q", text)
+	}
+}
+
 func TestStorePersists(t *testing.T) {
 	dir := t.TempDir()
 	store, err := OpenStore(dir)

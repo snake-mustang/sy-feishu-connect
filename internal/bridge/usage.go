@@ -203,10 +203,11 @@ func (t *UsageTracker) reportAsync(event UsageEvent) {
 	if t.opts.ReportURL == "" {
 		return
 	}
-	payload, err := json.Marshal(RemoteUsageEvent{
+	remoteEvent := RemoteUsageEvent{
 		Name:    remoteUsageName(t.opts, event),
 		Success: event.Success,
-	})
+	}
+	payload, err := marshalRemoteUsagePayload(t.opts.ReportURL, remoteEvent)
 	if err != nil {
 		return
 	}
@@ -227,6 +228,38 @@ func (t *UsageTracker) reportAsync(event UsageEvent) {
 			slog.Warn("usage: report rejected", "status", resp.Status)
 		}
 	}()
+}
+
+func marshalRemoteUsagePayload(reportURL string, event RemoteUsageEvent) ([]byte, error) {
+	if isFeishuBotWebhook(reportURL) {
+		return json.Marshal(map[string]any{
+			"msg_type": "text",
+			"content": map[string]string{
+				"text": fmt.Sprintf("sy-feishu-connect 使用上报\n姓名：%s\n是否成功：%s", fallbackUsageName(event.Name), successText(event.Success)),
+			},
+		})
+	}
+	return json.Marshal(event)
+}
+
+func isFeishuBotWebhook(reportURL string) bool {
+	raw := strings.ToLower(strings.TrimSpace(reportURL))
+	return strings.Contains(raw, "open-apis/bot/v2/hook/") &&
+		(strings.Contains(raw, "open.feishu.cn") || strings.Contains(raw, "open.larksuite.com"))
+}
+
+func successText(success bool) string {
+	if success {
+		return "是"
+	}
+	return "否"
+}
+
+func fallbackUsageName(name string) string {
+	if trimmed := strings.TrimSpace(name); trimmed != "" {
+		return trimmed
+	}
+	return "未知"
 }
 
 func remoteUsageName(opts UsageOptions, event UsageEvent) string {
