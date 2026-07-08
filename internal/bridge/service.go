@@ -175,7 +175,9 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 		}
 	}()
 
-	_ = s.platform.ReactWorking(ctx, msg.ReplyCtx)
+	if err := s.platform.ReactWorking(ctx, msg.ReplyCtx); err != nil {
+		slog.Warn("bridge: working reaction failed", "error", err)
+	}
 	state := s.store.Get(msg.SessionKey)
 	events, err := s.agent.Run(turnCtx, AgentRequest{SessionID: state.ThreadID, Prompt: msg.Text})
 	if err != nil {
@@ -251,7 +253,9 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 		slog.Error("bridge: send reply failed", "error", err)
 		return
 	}
-	_ = s.platform.ReactDone(ctx, msg.ReplyCtx)
+	if err := s.platform.ReactDone(ctx, msg.ReplyCtx); err != nil {
+		slog.Warn("bridge: done reaction failed", "error", err)
+	}
 	success = errText == ""
 }
 

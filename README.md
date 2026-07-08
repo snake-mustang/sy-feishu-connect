@@ -92,14 +92,15 @@ sy-feishu-connect start
       "im:message.group_at_msg:readonly",
       "im:message.p2p_msg:readonly",
       "im:message.group_msg",
-      "im:message:send_as_bot"
+      "im:message:send_as_bot",
+      "im:message:reaction"
     ],
     "user": []
   }
 }
 ```
 
-`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。
+`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。`im:message:reaction` 用于给单聊/群聊消息加处理中和完成表情；不需要表情时可以删掉。
 
 必选：
 

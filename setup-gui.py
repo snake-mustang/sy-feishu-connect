@@ -256,7 +256,7 @@ level = "info"
         self.results.extend([
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
-            Result("飞书后台：添加权限", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于本机统计时自动显示飞书姓名。敏感权限 im:message.group_msg 默认不需要。"),
+            Result("飞书后台：添加权限", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly；需要表情反馈时添加 im:message:reaction。敏感权限 im:message.group_msg 默认不需要。"),
             Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，只订阅 im.message.receive_v1。"),
             Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「发送文字」，菜单名称照抄报告里的中文。"),
             Result("飞书后台：发布应用", "warn", "每次改权限、事件或菜单后，都要到「版本管理与发布」创建版本并发布。"),
@@ -318,12 +318,13 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
       "im:message.group_at_msg:readonly",
       "im:message.p2p_msg:readonly",
       "im:message.group_msg",
-      "im:message:send_as_bot"
+      "im:message:send_as_bot",
+      "im:message:reaction"
     ],
     "user": []
   }
 }</pre>
-  <p><code>im:message.group_msg</code> 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。</p>
+  <p><code>im:message.group_msg</code> 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。<code>im:message:reaction</code> 用于给消息加处理中和完成表情；不需要表情时可以删掉。</p>
   <h3>必选权限</h3>
   <table>
     <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>

@@ -3,6 +3,7 @@ package feishu
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log/slog"
@@ -51,6 +52,8 @@ type Platform struct {
 	dedup          *dedup
 	userCacheMu    sync.Mutex
 	userCache      map[string]userCacheEntry
+	reactionMu     sync.Mutex
+	reactions      map[string]string
 }
 
 type ReplyContext struct {
@@ -96,6 +99,7 @@ func New(opts Options) (*Platform, error) {
 		domain:         domain,
 		dedup:          newDedup(10 * time.Minute),
 		userCache:      map[string]userCacheEntry{},
+		reactions:      map[string]string{},
 	}, nil
 }
 
@@ -316,35 +320,83 @@ func (p *Platform) sendOne(ctx context.Context, rc ReplyContext, text string) er
 }
 
 func (p *Platform) ReactWorking(ctx context.Context, replyCtx any) error {
-	return p.react(ctx, replyCtx, p.workingEmoji)
-}
-
-func (p *Platform) ReactDone(ctx context.Context, replyCtx any) error {
-	return p.react(ctx, replyCtx, p.doneEmoji)
-}
-
-func (p *Platform) react(ctx context.Context, replyCtx any, emoji string) error {
-	emoji = strings.TrimSpace(emoji)
-	if emoji == "" {
-		return nil
-	}
 	rc, ok := replyCtx.(ReplyContext)
 	if !ok || rc.MessageID == "" {
 		return nil
 	}
+	reactionID, err := p.addReaction(ctx, rc.MessageID, p.workingEmoji)
+	if err != nil {
+		return err
+	}
+	if reactionID != "" {
+		p.reactionMu.Lock()
+		if p.reactions == nil {
+			p.reactions = map[string]string{}
+		}
+		p.reactions[rc.MessageID] = reactionID
+		p.reactionMu.Unlock()
+	}
+	return nil
+}
+
+func (p *Platform) ReactDone(ctx context.Context, replyCtx any) error {
+	rc, ok := replyCtx.(ReplyContext)
+	if !ok || rc.MessageID == "" {
+		return nil
+	}
+	p.reactionMu.Lock()
+	workingReactionID := p.reactions[rc.MessageID]
+	delete(p.reactions, rc.MessageID)
+	p.reactionMu.Unlock()
+
+	var errs []error
+	if err := p.removeReaction(ctx, rc.MessageID, workingReactionID); err != nil {
+		errs = append(errs, err)
+	}
+	if _, err := p.addReaction(ctx, rc.MessageID, p.doneEmoji); err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
+}
+
+func (p *Platform) addReaction(ctx context.Context, messageID, emoji string) (string, error) {
+	emoji = strings.TrimSpace(emoji)
+	if emoji == "" {
+		return "", nil
+	}
 	req := larkim.NewCreateMessageReactionReqBuilder().
-		MessageId(rc.MessageID).
+		MessageId(messageID).
 		Body(larkim.NewCreateMessageReactionReqBodyBuilder().
 			ReactionType(larkim.NewEmojiBuilder().EmojiType(emoji).Build()).
 			Build()).
 		Build()
 	resp, err := p.client.Im.MessageReaction.Create(ctx, req)
 	if err != nil {
-		slog.Debug("feishu: reaction api failed", "emoji", emoji, "error", err)
-		return nil
+		return "", fmt.Errorf("feishu: add reaction %q: %w", emoji, err)
 	}
 	if !resp.Success() {
-		slog.Debug("feishu: reaction rejected", "emoji", emoji, "code", resp.Code, "msg", resp.Msg)
+		return "", fmt.Errorf("feishu: add reaction %q rejected code=%d msg=%s", emoji, resp.Code, resp.Msg)
+	}
+	if resp.Data != nil && resp.Data.ReactionId != nil {
+		return *resp.Data.ReactionId, nil
+	}
+	return "", nil
+}
+
+func (p *Platform) removeReaction(ctx context.Context, messageID, reactionID string) error {
+	if strings.TrimSpace(messageID) == "" || strings.TrimSpace(reactionID) == "" {
+		return nil
+	}
+	req := larkim.NewDeleteMessageReactionReqBuilder().
+		MessageId(messageID).
+		ReactionId(reactionID).
+		Build()
+	resp, err := p.client.Im.MessageReaction.Delete(ctx, req)
+	if err != nil {
+		return fmt.Errorf("feishu: remove reaction: %w", err)
+	}
+	if !resp.Success() {
+		return fmt.Errorf("feishu: remove reaction rejected code=%d msg=%s", resp.Code, resp.Msg)
 	}
 	return nil
 }
