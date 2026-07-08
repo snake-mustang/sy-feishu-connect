@@ -29,6 +29,7 @@ type Service struct {
 	sessions      map[string]*sessionWorker
 	activeTurns   map[string]*activeTurn
 	latestSession map[string]string
+	displayMode   string
 }
 
 type activeTurn struct {
@@ -67,6 +68,7 @@ func New(opts Options) (*Service, error) {
 		sessions:      map[string]*sessionWorker{},
 		activeTurns:   map[string]*activeTurn{},
 		latestSession: map[string]string{},
+		displayMode:   displayThinking,
 	}, nil
 }
 
@@ -188,9 +190,17 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 		}
 		switch event.Type {
 		case EventTool:
-			if time.Since(lastTool) > 5*time.Second && strings.TrimSpace(event.Text) != "" {
-				lastTool = time.Now()
-				slog.Info("codex progress", "session_key", msg.SessionKey, "event", event.Text)
+			text := strings.TrimSpace(event.Text)
+			if text != "" {
+				if s.getDisplayMode() == displayThinking {
+					progress := formatProgressText(text)
+					replyChars += len([]rune(progress))
+					_ = s.platform.Send(ctx, msg.ReplyCtx, progress)
+				}
+				if time.Since(lastTool) > 5*time.Second {
+					lastTool = time.Now()
+					slog.Info("codex progress", "session_key", msg.SessionKey, "event", text)
+				}
 			}
 		case EventText:
 			if strings.TrimSpace(event.Text) != "" {
@@ -218,7 +228,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	if final == "" {
 		final = "Codex 已完成，但没有返回文本。"
 	}
-	replyChars = len([]rune(final))
+	replyChars += len([]rune(final))
 	if err := s.platform.Send(ctx, msg.ReplyCtx, final); err != nil {
 		errText = err.Error()
 		slog.Error("bridge: send reply failed", "error", err)
@@ -265,7 +275,7 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 /pwd - 查看 Codex 工作目录
 /mode - 查看当前执行模式
 /model - 查看当前模型配置
-/display full|compact|quiet - 切换显示入口
+/display thinking|final|quiet - 切换显示模式，默认显示思考过程
 /stats - 查看使用统计
 /whoami - 查看你的飞书用户标识
 /help - 显示帮助`))
@@ -342,11 +352,19 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		record(true)
 		return true
 	case "/display":
-		mode := strings.TrimSpace(rest)
-		if mode == "" {
-			mode = "compact"
+		mode, ok := normalizeDisplayMode(rest)
+		if strings.TrimSpace(rest) == "" {
+			_ = s.platform.Send(ctx, msg.ReplyCtx, displayModeText(s.getDisplayMode(), false))
+			record(true)
+			return true
 		}
-		_ = s.platform.Send(ctx, msg.ReplyCtx, displayModeText(mode))
+		if !ok {
+			_ = s.platform.Send(ctx, msg.ReplyCtx, "不认识这个显示模式。\n\n可用：/display thinking、/display final、/display quiet")
+			record(false)
+			return true
+		}
+		s.setDisplayMode(mode)
+		_ = s.platform.Send(ctx, msg.ReplyCtx, displayModeText(mode, true))
 		record(true)
 		return true
 	case "/stats":
@@ -493,13 +511,55 @@ func fallback(value, def string) string {
 	return value
 }
 
-func displayModeText(mode string) string {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "full", "thinking", "on":
-		return "已收到：显示思考。\n\n当前版本默认只把 Codex 最终回答发回飞书，不展示内部思考；后续如果开启过程展示，会使用这个入口。"
+const (
+	displayThinking = "thinking"
+	displayFinal    = "final"
+	displayQuiet    = "quiet"
+)
+
+func normalizeDisplayMode(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "thinking", "think", "on", "full", "show":
+		return displayThinking, true
+	case "final", "off", "compact", "result", "answer":
+		return displayFinal, true
 	case "quiet", "minimal", "mini":
-		return "已切换到极简显示入口。\n\n当前版本飞书回复本来就是简洁结果模式。"
+		return displayQuiet, true
 	default:
-		return "已收到：关闭思考。\n\n当前版本默认只把 Codex 最终回答发回飞书，不展示内部思考。"
+		return "", false
 	}
+}
+
+func (s *Service) getDisplayMode() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.displayMode == "" {
+		return displayThinking
+	}
+	return s.displayMode
+}
+
+func (s *Service) setDisplayMode(mode string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.displayMode = mode
+}
+
+func displayModeText(mode string, changed bool) string {
+	prefix := "当前显示模式："
+	if changed {
+		prefix = "已切换显示模式："
+	}
+	switch mode {
+	case displayThinking:
+		return prefix + "显示思考。\n\n会把 Codex 的执行过程和工具进度同步到飞书；这是默认模式。"
+	case displayQuiet:
+		return prefix + "极简模式。\n\n隐藏执行过程，只发送最终回答。"
+	default:
+		return prefix + "只看结果。\n\n隐藏执行过程，只发送最终回答。"
+	}
+}
+
+func formatProgressText(text string) string {
+	return "思考中：\n" + strings.TrimSpace(text)
 }

@@ -494,9 +494,9 @@ domain = "feishu"</code></pre>
             <div class="menu-group"><h3>1. 会话</h3><ul><li>新建会话：<code>/new</code></li><li>会话列表：<code>/sessions</code></li><li>当前会话：<code>/status</code></li></ul></div>
             <div class="menu-group"><h3>2. 执行</h3><ul><li>停止执行：<code>/stop</code></li><li>当前状态：<code>/status</code></li><li>工作目录：<code>/pwd</code></li></ul></div>
             <div class="menu-group"><h3>3. 设置</h3><ul><li>模式：<code>/mode</code></li><li>模型：<code>/model</code></li><li>帮助：<code>/help</code></li></ul></div>
-            <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考：<code>/display full</code></li><li>关闭思考：<code>/display compact</code></li><li>极简模式：<code>/display quiet</code></li></ul></div>
+            <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考（默认）：<code>/display thinking</code></li><li>关闭思考：<code>/display final</code></li><li>极简模式：<code>/display quiet</code></li></ul></div>
           </div>
-	          <div class="callout ok">每个菜单项都选「推送事件」，事件 ID 填下面的固定值。菜单点了没反应时，先检查事件订阅里有没有 <code>application.bot.menu_v6</code>，再检查应用是否已发布。</div>
+	          <div class="callout ok">每个菜单项都选「推送事件」，事件 ID 填下面的固定值。默认会显示 Codex 的执行过程和工具进度；只想看最终结果时，再点「关闭思考」。菜单点了没反应时，先检查事件订阅里有没有 <code>application.bot.menu_v6</code>，再检查应用是否已发布。</div>
 	          <table>
 	            <thead><tr><th>分组</th><th>菜单项</th><th>推送事件 ID</th><th>实际执行</th></tr></thead>
 	            <tbody>
@@ -509,8 +509,8 @@ domain = "feishu"</code></pre>
 	              <tr><td>设置</td><td>模式</td><td><code>settings_mode</code></td><td><code>/mode</code></td></tr>
 	              <tr><td>设置</td><td>模型</td><td><code>settings_model</code></td><td><code>/model</code></td></tr>
 	              <tr><td>设置</td><td>帮助</td><td><code>settings_help</code></td><td><code>/help</code></td></tr>
-	              <tr><td>显示</td><td>显示思考</td><td><code>display_thinking_on</code></td><td><code>/display full</code></td></tr>
-	              <tr><td>显示</td><td>关闭思考</td><td><code>display_thinking_off</code></td><td><code>/display compact</code></td></tr>
+	              <tr><td>显示</td><td>显示思考（默认）</td><td><code>display_thinking_on</code></td><td><code>/display thinking</code></td></tr>
+	              <tr><td>显示</td><td>关闭思考</td><td><code>display_thinking_off</code></td><td><code>/display final</code></td></tr>
 	              <tr><td>显示</td><td>极简模式</td><td><code>display_minimal</code></td><td><code>/display quiet</code></td></tr>
 	            </tbody>
 	          </table>

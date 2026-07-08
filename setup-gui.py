@@ -359,7 +359,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <div><h3>1. 会话</h3><p>新建会话 <code>/new</code><br>会话列表 <code>/sessions</code><br>当前会话 <code>/status</code></p></div>
     <div><h3>2. 执行</h3><p>停止执行 <code>/stop</code><br>当前状态 <code>/status</code><br>工作目录 <code>/pwd</code></p></div>
     <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
-    <div><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
+    <div><h3>4. 显示</h3><p>显示思考（默认） <code>/display thinking</code><br>关闭思考 <code>/display final</code><br>极简模式 <code>/display quiet</code></p></div>
   </div>
   <p><strong>所有菜单项都选「推送事件」。</strong>事件 ID 用：<code>session_new</code>、<code>session_list</code>、<code>session_current</code>、<code>exec_stop</code>、<code>exec_status</code>、<code>exec_workdir</code>、<code>settings_mode</code>、<code>settings_model</code>、<code>settings_help</code>、<code>display_thinking_on</code>、<code>display_thinking_off</code>、<code>display_minimal</code>。</p>
 </section>

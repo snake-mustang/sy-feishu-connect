@@ -53,8 +53,8 @@ func TestMenuCommandMapping(t *testing.T) {
 		"settings_mode":        "/mode",
 		"settings_model":       "/model",
 		"settings_help":        "/help",
-		"display_thinking_on":  "/display full",
-		"display_thinking_off": "/display compact",
+		"display_thinking_on":  "/display thinking",
+		"display_thinking_off": "/display final",
 		"display_minimal":      "/display quiet",
 	}
 	for eventKey, want := range tests {

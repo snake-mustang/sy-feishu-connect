@@ -146,9 +146,11 @@ sy-feishu-connect start
 | 设置 | 模式 | `settings_mode` | `/mode` |
 | 设置 | 模型 | `settings_model` | `/model` |
 | 设置 | 帮助 | `settings_help` | `/help` |
-| 显示 | 显示思考 | `display_thinking_on` | `/display full` |
-| 显示 | 关闭思考 | `display_thinking_off` | `/display compact` |
+| 显示 | 显示思考（默认） | `display_thinking_on` | `/display thinking` |
+| 显示 | 关闭思考 | `display_thinking_off` | `/display final` |
 | 显示 | 极简模式 | `display_minimal` | `/display quiet` |
+
+默认会显示 Codex 的执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
 
 如果菜单点了没反应，优先检查「事件与回调」有没有订阅 `application.bot.menu_v6`，以及应用有没有重新发布。
 

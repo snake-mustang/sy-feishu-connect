@@ -31,6 +31,18 @@ func (a *fakeAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, er
 	return ch, nil
 }
 
+type progressAgent struct{}
+
+func (a *progressAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
+	ch := make(chan Event, 4)
+	ch <- Event{Type: EventStarted, SessionID: "thread-1"}
+	ch <- Event{Type: EventTool, Text: "Bash: echo hello", SessionID: "thread-1"}
+	ch <- Event{Type: EventText, Text: "reply", SessionID: "thread-1"}
+	ch <- Event{Type: EventDone, SessionID: "thread-1"}
+	close(ch)
+	return ch, nil
+}
+
 type failingAgent struct{}
 
 func (a *failingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
@@ -186,7 +198,7 @@ func TestRuntimeCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, text := range []string{"/pwd", "/mode", "/model", "/display full", "/stop"} {
+	for _, text := range []string{"/pwd", "/mode", "/model", "/display thinking", "/stop"} {
 		if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", Text: text}) {
 			t.Fatalf("command %q not handled", text)
 		}
@@ -196,6 +208,51 @@ func TestRuntimeCommands(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("missing %q in %#v", want, platform.sent)
 		}
+	}
+}
+
+func TestDefaultDisplayModeSendsProgress(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:         &progressAgent{},
+		Platform:      platform,
+		DataDir:       t.TempDir(),
+		QueueMessages: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", Text: "hello"})
+
+	if len(platform.sent) != 2 {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+	if !strings.Contains(platform.sent[0], "思考中") || !strings.Contains(platform.sent[0], "Bash: echo hello") {
+		t.Fatalf("progress not sent: %#v", platform.sent)
+	}
+	if platform.sent[1] != "reply" {
+		t.Fatalf("final reply=%#v", platform.sent)
+	}
+}
+
+func TestFinalDisplayModeSuppressesProgress(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:         &progressAgent{},
+		Platform:      platform,
+		DataDir:       t.TempDir(),
+		QueueMessages: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.setDisplayMode(displayFinal)
+
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", Text: "hello"})
+
+	if len(platform.sent) != 1 || platform.sent[0] != "reply" {
+		t.Fatalf("sent=%#v", platform.sent)
 	}
 }
 

@@ -608,9 +608,9 @@ func menuCommand(eventKey string) string {
 	case "settings_help", "help", "/help":
 		return "/help"
 	case "display_thinking_on", "display_full", "thinking_on":
-		return "/display full"
+		return "/display thinking"
 	case "display_thinking_off", "display_compact", "thinking_off":
-		return "/display compact"
+		return "/display final"
 	case "display_minimal", "display_quiet", "minimal", "quiet":
 		return "/display quiet"
 	default:
