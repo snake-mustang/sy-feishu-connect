@@ -235,8 +235,8 @@ level = "info"
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
             Result("飞书后台：添加权限并发布", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于统计时自动显示姓名/工号。敏感权限 im:message.group_msg 默认不需要。"),
-            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，只订阅 im.message.receive_v1。"),
-            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「发送文字消息」，名称填推荐的中文菜单名；飞书会把名称作为消息发送。不要选「推送事件」。"),
+            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1 和 application.bot.menu_v6。"),
+            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「推送事件」，事件 ID 填报告里的固定值。"),
         ])
 
     def _write_report(self) -> None:
@@ -319,16 +319,17 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
       <tr><td>添加消息表情回复</td><td><code>im:message:reaction</code></td><td>处理中/完成表情</td></tr>
     </tbody>
   </table>
-  <h3>事件配置</h3>
-  <p>订阅方式选择：使用长连接接收事件。</p>
-	  <table>
-	    <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
-	    <tbody>
-	      <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息</td></tr>
-	    </tbody>
-	  </table>
-	  <p><strong>底部菜单不用订阅 <code>application.bot.menu_v6</code>。</strong>「推送事件」会让飞书服务器向请求地址发 HTTP POST；本机长连接收不到。请把菜单响应动作设为「发送文字消息」。</p>
-	</section>
+	  <h3>事件配置</h3>
+	  <p>订阅方式选择：使用长连接接收事件。</p>
+  <table>
+    <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息</td></tr>
+      <tr><td>机器人自定义菜单事件</td><td><code>application.bot.menu_v6</code></td><td>接收底部菜单“推送事件”点击</td></tr>
+    </tbody>
+  </table>
+  <p><strong><code>application.bot.menu_v6</code> 必须添加。</strong>少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。</p>
+</section>
 <section class="panel">
   <h2>推荐飞书底部自定义栏</h2>
   <div class="menu-grid">
@@ -337,8 +338,8 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
     <div><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
   </div>
-	  <p><strong>所有菜单项都选「发送文字消息」。</strong>飞书没有单独的发送内容输入框，会把菜单名称作为消息发送；名称就填上面的中文菜单名，例如 <code>新建会话</code>。工具会自动把它转换成 <code>/new</code>。不要选「推送事件」，否则飞书会把点击发到 HTTP 请求地址，本机工具收不到。</p>
-	</section>
+  <p><strong>所有菜单项都选「推送事件」。</strong>事件 ID 用：<code>session_new</code>、<code>session_list</code>、<code>session_current</code>、<code>exec_stop</code>、<code>exec_status</code>、<code>exec_workdir</code>、<code>settings_mode</code>、<code>settings_model</code>、<code>settings_help</code>、<code>display_thinking_on</code>、<code>display_thinking_off</code>、<code>display_minimal</code>。</p>
+</section>
 <section class="panel">
   <h2>下一步</h2>
   <p>如果失败项是 0，去飞书后台完成黄色待办，然后运行：</p>

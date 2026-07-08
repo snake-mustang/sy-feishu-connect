@@ -229,7 +229,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 }
 
 func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
-	text := normalizeMenuCommand(strings.TrimSpace(msg.Text))
+	text := strings.TrimSpace(msg.Text)
 	if !strings.HasPrefix(text, "/") {
 		return false
 	}
@@ -373,28 +373,6 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 	default:
 		return false
 	}
-}
-
-var menuTextCommands = map[string]string{
-	"新建会话": "/new",
-	"会话列表": "/sessions",
-	"当前会话": "/status",
-	"停止执行": "/stop",
-	"当前状态": "/status",
-	"工作目录": "/pwd",
-	"模式":   "/mode",
-	"模型":   "/model",
-	"帮助":   "/help",
-	"显示思考": "/display full",
-	"关闭思考": "/display compact",
-	"极简模式": "/display quiet",
-}
-
-func normalizeMenuCommand(text string) string {
-	if command, ok := menuTextCommands[text]; ok {
-		return command
-	}
-	return text
 }
 
 func (s *Service) bindMessageSession(msg Message) Message {

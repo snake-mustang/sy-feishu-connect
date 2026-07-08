@@ -71,8 +71,8 @@ sy-feishu-connect start
 1. 启用机器人能力。
 2. 在「凭据与基础信息」复制 `App ID` 和 `App Secret`。
 3. 在「权限管理」用批量导入添加消息权限并发布。
-4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1`。
-5. 在「机器人自定义菜单」配置底部自定义栏，菜单动作统一选「发送文字消息」。
+4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1` 和 `application.bot.menu_v6`。
+5. 在「机器人自定义菜单」配置底部自定义栏，菜单动作统一选「推送事件」。
 
 更小白的图文步骤见 [使用教程.md](./使用教程.md) 和 [小白图文教程.html](./小白图文教程.html)。
 
@@ -120,36 +120,35 @@ sy-feishu-connect start
 | 事件名称 | 事件标识 | 用途 |
 | --- | --- | --- |
 | 接收消息 | `im.message.receive_v1` | 接收用户发送的消息 |
+| 机器人自定义菜单事件 | `application.bot.menu_v6` | 接收底部菜单“推送事件”点击 |
 
-底部菜单默认不需要订阅 `application.bot.menu_v6`。飞书后台里的「推送事件」会让飞书服务器向“请求地址”发 HTTP POST，本地长连接收不到这类点击；这个项目的小白路径请统一用「发送文字消息」。
+`application.bot.menu_v6` 必须添加。少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。
 
 ## 飞书底部自定义栏推荐
 
 每个菜单项都这样填：
 
 ```text
-响应动作：发送文字消息
-名称：下面表格里的中文菜单名
+响应动作：推送事件
+事件 ID：下面表格里的固定值
 ```
 
-飞书没有单独的“发送内容”输入框，会把菜单「名称」作为消息发给机器人。下面这些中文名称已经内置映射：
+| 分组 | 菜单项 | 推送事件 ID | 实际执行 |
+| --- | --- | --- | --- |
+| 会话 | 新建会话 | `session_new` | `/new` |
+| 会话 | 会话列表 | `session_list` | `/sessions` |
+| 会话 | 当前会话 | `session_current` | `/status` |
+| 执行 | 停止执行 | `exec_stop` | `/stop` |
+| 执行 | 当前状态 | `exec_status` | `/status` |
+| 执行 | 工作目录 | `exec_workdir` | `/pwd` |
+| 设置 | 模式 | `settings_mode` | `/mode` |
+| 设置 | 模型 | `settings_model` | `/model` |
+| 设置 | 帮助 | `settings_help` | `/help` |
+| 显示 | 显示思考 | `display_thinking_on` | `/display full` |
+| 显示 | 关闭思考 | `display_thinking_off` | `/display compact` |
+| 显示 | 极简模式 | `display_minimal` | `/display quiet` |
 
-| 分组 | 子菜单名称 | 实际执行 |
-| --- | --- | --- |
-| 会话 | 新建会话 | `/new` |
-| 会话 | 会话列表 | `/sessions` |
-| 会话 | 当前会话 | `/status` |
-| 执行 | 停止执行 | `/stop` |
-| 执行 | 当前状态 | `/status` |
-| 执行 | 工作目录 | `/pwd` |
-| 设置 | 模式 | `/mode` |
-| 设置 | 模型 | `/model` |
-| 设置 | 帮助 | `/help` |
-| 显示 | 显示思考 | `/display full` |
-| 显示 | 关闭思考 | `/display compact` |
-| 显示 | 极简模式 | `/display quiet` |
-
-不要选「推送事件」。如果选了它，飞书会把点击事件发到 HTTP 请求地址；你现在跑的是本机长连接，所以菜单点击会没反应。
+如果菜单点了没反应，优先检查「事件与回调」有没有订阅 `application.bot.menu_v6`，以及应用有没有重新发布。
 
 当前已实现：`/help`、`/new`、`/status`、`/sessions`、`/stop`、`/pwd`、`/mode`、`/model`、`/display`、`/stats`、`/whoami`、`/reset`。
 

@@ -168,10 +168,11 @@ domain = "feishu"
 | 事件名称 | 事件标识 | 用途 |
 | --- | --- | --- |
 | 接收消息 | `im.message.receive_v1` | 接收用户发送给机器人的消息 |
+| 机器人自定义菜单事件 | `application.bot.menu_v6` | 接收底部菜单“推送事件”点击 |
 
 保存后创建版本并发布。
 
-底部菜单默认不需要订阅 `application.bot.menu_v6`。飞书后台里的「推送事件」会走 HTTP 请求地址；本项目默认用长连接，不需要公网 IP，所以菜单请配置成「发送文字消息」。
+`application.bot.menu_v6` 必须添加。少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。
 
 ## 第六步：配置底部自定义栏
 
@@ -184,28 +185,26 @@ domain = "feishu"
 推荐按 4 组来设计，用户更容易理解。每个菜单项都设置成：
 
 ```text
-响应动作：发送文字消息
-名称：下面表格里的中文菜单名
+响应动作：推送事件
+事件 ID：下面表格里的固定值
 ```
 
-飞书没有单独的“发送内容”输入框，会把菜单「名称」作为消息发给机器人。下面这些中文名称已经内置映射：
+| 分组 | 菜单项 | 推送事件 ID | 实际执行 |
+| --- | --- | --- | --- |
+| 会话 | 新建会话 | `session_new` | `/new` |
+| 会话 | 会话列表 | `session_list` | `/sessions` |
+| 会话 | 当前会话 | `session_current` | `/status` |
+| 执行 | 停止执行 | `exec_stop` | `/stop` |
+| 执行 | 当前状态 | `exec_status` | `/status` |
+| 执行 | 工作目录 | `exec_workdir` | `/pwd` |
+| 设置 | 模式 | `settings_mode` | `/mode` |
+| 设置 | 模型 | `settings_model` | `/model` |
+| 设置 | 帮助 | `settings_help` | `/help` |
+| 显示 | 显示思考 | `display_thinking_on` | `/display full` |
+| 显示 | 关闭思考 | `display_thinking_off` | `/display compact` |
+| 显示 | 极简模式 | `display_minimal` | `/display quiet` |
 
-| 分组 | 子菜单名称 | 实际执行 |
-| --- | --- | --- |
-| 会话 | 新建会话 | `/new` |
-| 会话 | 会话列表 | `/sessions` |
-| 会话 | 当前会话 | `/status` |
-| 执行 | 停止执行 | `/stop` |
-| 执行 | 当前状态 | `/status` |
-| 执行 | 工作目录 | `/pwd` |
-| 设置 | 模式 | `/mode` |
-| 设置 | 模型 | `/model` |
-| 设置 | 帮助 | `/help` |
-| 显示 | 显示思考 | `/display full` |
-| 显示 | 关闭思考 | `/display compact` |
-| 显示 | 极简模式 | `/display quiet` |
-
-不要选「推送事件」。它会让飞书服务器通过 HTTP POST 把 JSON 发到后台配置的请求地址；本地长连接模式收不到，所以点击后看起来就像没生效。
+如果菜单点了没反应，先检查两件事：事件里有没有订阅 `application.bot.menu_v6`，应用有没有发布新版本。
 
 当前已支持 `/help`、`/new`、`/status`、`/sessions`、`/stop`、`/pwd`、`/mode`、`/model`、`/display`、`/stats`、`/whoami`、`/reset`。
 

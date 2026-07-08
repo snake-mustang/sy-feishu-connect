@@ -454,13 +454,14 @@ domain = "feishu"</code></pre>
           </table>
           <h3>事件与回调里添加</h3>
           <p>订阅方式选择：使用长连接接收事件。</p>
-          <table>
+	          <table>
 	            <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
 	            <tbody>
 	              <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息。</td></tr>
+	              <tr><td>机器人自定义菜单事件</td><td><code>application.bot.menu_v6</code></td><td>接收底部菜单“推送事件”点击。</td></tr>
 	            </tbody>
 	          </table>
-	          <div class="callout warn">底部菜单不要选「推送事件」，也不用订阅 <code>application.bot.menu_v6</code>。飞书提示“通过 HTTP POST 发送到请求地址”时，说明它要公网回调地址；本地长连接收不到。</div>
+	          <div class="callout warn"><code>application.bot.menu_v6</code> 必须添加。少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。</div>
 	          <div class="callout warn">飞书后台改完权限、事件以后，一定要去「版本管理与发布」发布新版本。</div>
 	        </section>
 
@@ -473,22 +474,22 @@ domain = "feishu"</code></pre>
             <div class="menu-group"><h3>3. 设置</h3><ul><li>模式：<code>/mode</code></li><li>模型：<code>/model</code></li><li>帮助：<code>/help</code></li></ul></div>
             <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考：<code>/display full</code></li><li>关闭思考：<code>/display compact</code></li><li>极简模式：<code>/display quiet</code></li></ul></div>
           </div>
-	          <div class="callout ok">每个菜单项都选「发送文字消息」。飞书没有单独的发送内容输入框，会把菜单名称作为消息发送；名称就填下面的中文菜单名，例如「新建会话」。工具会自动转换成 <code>/new</code>。</div>
+	          <div class="callout ok">每个菜单项都选「推送事件」，事件 ID 填下面的固定值。菜单点了没反应时，先检查事件订阅里有没有 <code>application.bot.menu_v6</code>，再检查应用是否已发布。</div>
 	          <table>
-	            <thead><tr><th>分组</th><th>子菜单名称</th><th>响应动作</th><th>实际执行</th></tr></thead>
+	            <thead><tr><th>分组</th><th>菜单项</th><th>推送事件 ID</th><th>实际执行</th></tr></thead>
 	            <tbody>
-	              <tr><td>会话</td><td>新建会话</td><td>发送文字消息</td><td><code>/new</code></td></tr>
-	              <tr><td>会话</td><td>会话列表</td><td>发送文字消息</td><td><code>/sessions</code></td></tr>
-	              <tr><td>会话</td><td>当前会话</td><td>发送文字消息</td><td><code>/status</code></td></tr>
-	              <tr><td>执行</td><td>停止执行</td><td>发送文字消息</td><td><code>/stop</code></td></tr>
-	              <tr><td>执行</td><td>当前状态</td><td>发送文字消息</td><td><code>/status</code></td></tr>
-	              <tr><td>执行</td><td>工作目录</td><td>发送文字消息</td><td><code>/pwd</code></td></tr>
-	              <tr><td>设置</td><td>模式</td><td>发送文字消息</td><td><code>/mode</code></td></tr>
-	              <tr><td>设置</td><td>模型</td><td>发送文字消息</td><td><code>/model</code></td></tr>
-	              <tr><td>设置</td><td>帮助</td><td>发送文字消息</td><td><code>/help</code></td></tr>
-	              <tr><td>显示</td><td>显示思考</td><td>发送文字消息</td><td><code>/display full</code></td></tr>
-	              <tr><td>显示</td><td>关闭思考</td><td>发送文字消息</td><td><code>/display compact</code></td></tr>
-	              <tr><td>显示</td><td>极简模式</td><td>发送文字消息</td><td><code>/display quiet</code></td></tr>
+	              <tr><td>会话</td><td>新建会话</td><td><code>session_new</code></td><td><code>/new</code></td></tr>
+	              <tr><td>会话</td><td>会话列表</td><td><code>session_list</code></td><td><code>/sessions</code></td></tr>
+	              <tr><td>会话</td><td>当前会话</td><td><code>session_current</code></td><td><code>/status</code></td></tr>
+	              <tr><td>执行</td><td>停止执行</td><td><code>exec_stop</code></td><td><code>/stop</code></td></tr>
+	              <tr><td>执行</td><td>当前状态</td><td><code>exec_status</code></td><td><code>/status</code></td></tr>
+	              <tr><td>执行</td><td>工作目录</td><td><code>exec_workdir</code></td><td><code>/pwd</code></td></tr>
+	              <tr><td>设置</td><td>模式</td><td><code>settings_mode</code></td><td><code>/mode</code></td></tr>
+	              <tr><td>设置</td><td>模型</td><td><code>settings_model</code></td><td><code>/model</code></td></tr>
+	              <tr><td>设置</td><td>帮助</td><td><code>settings_help</code></td><td><code>/help</code></td></tr>
+	              <tr><td>显示</td><td>显示思考</td><td><code>display_thinking_on</code></td><td><code>/display full</code></td></tr>
+	              <tr><td>显示</td><td>关闭思考</td><td><code>display_thinking_off</code></td><td><code>/display compact</code></td></tr>
+	              <tr><td>显示</td><td>极简模式</td><td><code>display_minimal</code></td><td><code>/display quiet</code></td></tr>
 	            </tbody>
 	          </table>
           <div class="diagram">
