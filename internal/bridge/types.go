@@ -19,6 +19,18 @@ type RuntimeInfo struct {
 	Mode            string
 	Model           string
 	ReasoningEffort string
+	CodexHome       string
+}
+
+type TokenUsage struct {
+	UsedTokens               int
+	TotalTokens              int
+	InputTokens              int
+	CachedInputTokens        int
+	CacheCreationInputTokens int
+	OutputTokens             int
+	ReasoningOutputTokens    int
+	ContextWindow            int
 }
 
 type UserProfile struct {
@@ -62,5 +74,6 @@ type Event struct {
 	Type      EventType
 	Text      string
 	SessionID string
+	Usage     *TokenUsage
 	Err       error
 }

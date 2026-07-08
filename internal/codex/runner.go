@@ -20,6 +20,12 @@ import (
 	"sy-feishu-codex-webhook/internal/bridge"
 )
 
+const (
+	codexRolloutTailBytes int64 = 1 << 20
+	codexUsageRetryDelay        = 50 * time.Millisecond
+	codexUsageRetryCount        = 4
+)
+
 type Options struct {
 	WorkDir         string
 	CLIPath         string
@@ -108,7 +114,7 @@ func (r *Runner) Run(ctx context.Context, req bridge.AgentRequest) (<-chan bridg
 	go func() {
 		defer cancel()
 		defer close(events)
-		parser := newParser(events, runCtx)
+		parser := newParser(events, runCtx, resolveCodexHome(r.codexHome, r.env))
 		if err := readJSONLines(stdout, parser.handle); err != nil && runCtx.Err() == nil {
 			events <- bridge.Event{Type: bridge.EventError, Err: fmt.Errorf("codex stdout: %w", err)}
 		}
@@ -226,10 +232,13 @@ type parser struct {
 	pendingText []string
 	done        bool
 	sessionID   string
+	codexHome   string
+	sessionFile string
+	usage       *bridge.TokenUsage
 }
 
-func newParser(events chan<- bridge.Event, ctx context.Context) *parser {
-	return &parser{events: events, ctx: ctx}
+func newParser(events chan<- bridge.Event, ctx context.Context, codexHome string) *parser {
+	return &parser{events: events, ctx: ctx, codexHome: codexHome}
 }
 
 func (p *parser) handle(line []byte) error {
@@ -241,17 +250,21 @@ func (p *parser) handle(line []byte) error {
 	switch rawString(raw, "type") {
 	case "thread.started":
 		p.sessionID = rawString(raw, "thread_id")
+		p.sessionFile = ""
+		p.usage = nil
 		p.emit(bridge.Event{Type: bridge.EventStarted, SessionID: p.sessionID})
 	case "turn.started":
 		p.pendingText = p.pendingText[:0]
+		p.usage = nil
 	case "item.started":
 		p.handleItemStarted(raw)
 	case "item.completed":
 		p.handleItemCompleted(raw)
 	case "turn.completed":
+		p.refreshUsage(raw)
 		p.flushText()
 		p.done = true
-		p.emit(bridge.Event{Type: bridge.EventDone, SessionID: p.sessionID})
+		p.emit(bridge.Event{Type: bridge.EventDone, SessionID: p.sessionID, Usage: p.usage})
 	case "turn.failed":
 		msg := "turn failed"
 		if errObj, ok := raw["error"].(map[string]any); ok {
@@ -340,6 +353,38 @@ func (p *parser) finish() {
 	}
 }
 
+func (p *parser) refreshUsage(raw map[string]any) {
+	if usage := tokenUsageFromEvent(raw); usage != nil {
+		p.usage = usage
+		return
+	}
+	if strings.TrimSpace(p.sessionID) == "" || strings.TrimSpace(p.codexHome) == "" {
+		return
+	}
+	for attempt := 0; attempt < codexUsageRetryCount; attempt++ {
+		path := p.sessionFile
+		if path == "" {
+			path = findSessionFileInCodexHome(p.codexHome, p.sessionID)
+		}
+		if path != "" {
+			usage, err := readTokenUsageFromRollout(path)
+			if err == nil && usage != nil {
+				p.sessionFile = path
+				p.usage = usage
+				return
+			}
+			if attempt == codexUsageRetryCount-1 && err != nil {
+				slog.Debug("codex: usage unavailable", "thread_id", p.sessionID, "error", err)
+			}
+		}
+		select {
+		case <-time.After(codexUsageRetryDelay):
+		case <-p.ctx.Done():
+			return
+		}
+	}
+}
+
 func (p *parser) emit(event bridge.Event) {
 	select {
 	case p.events <- event:
@@ -377,30 +422,272 @@ func rawString(m map[string]any, key string) string {
 }
 
 func extractItemText(item map[string]any, arrayField, elementType string) string {
-	if s, ok := item["text"].(string); ok {
-		return s
-	}
 	if s, ok := item[arrayField].(string); ok {
 		return s
 	}
-	arr, ok := item[arrayField].([]any)
-	if !ok {
-		return ""
+	if arr, ok := item[arrayField].([]any); ok {
+		var parts []string
+		for _, entry := range arr {
+			switch v := entry.(type) {
+			case string:
+				if strings.TrimSpace(v) != "" {
+					parts = append(parts, v)
+				}
+			case map[string]any:
+				if typ := rawString(v, "type"); typ != "" && typ != elementType {
+					continue
+				}
+				if text := rawString(v, "text"); text != "" {
+					parts = append(parts, text)
+				}
+			}
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, "\n")
+		}
 	}
-	var parts []string
-	for _, entry := range arr {
-		obj, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		if typ := rawString(obj, "type"); typ != "" && typ != elementType {
-			continue
-		}
-		if text := rawString(obj, "text"); text != "" {
+	if s, ok := item["text"].(string); ok {
+		return s
+	}
+	if arr, ok := item["content"].([]any); ok && arrayField != "content" {
+		var parts []string
+		for _, entry := range arr {
+			text, ok := entry.(string)
+			if !ok || strings.TrimSpace(text) == "" {
+				continue
+			}
 			parts = append(parts, text)
 		}
+		if len(parts) > 0 {
+			return strings.Join(parts, "\n")
+		}
 	}
-	return strings.Join(parts, "\n")
+	return ""
+}
+
+type tokenUsageSnake struct {
+	TotalTokens           int `json:"total_tokens"`
+	InputTokens           int `json:"input_tokens"`
+	CachedInputTokens     int `json:"cached_input_tokens"`
+	OutputTokens          int `json:"output_tokens"`
+	ReasoningOutputTokens int `json:"reasoning_output_tokens"`
+}
+
+type tokenUsageCamel struct {
+	TotalTokens           int `json:"totalTokens"`
+	InputTokens           int `json:"inputTokens"`
+	CachedInputTokens     int `json:"cachedInputTokens"`
+	OutputTokens          int `json:"outputTokens"`
+	ReasoningOutputTokens int `json:"reasoningOutputTokens"`
+}
+
+func tokenUsageFromEvent(raw map[string]any) *bridge.TokenUsage {
+	if raw == nil {
+		return nil
+	}
+	if usage := usageFromMap(raw); usage != nil {
+		return usage
+	}
+	for _, key := range []string{"info", "payload", "usage", "token_usage", "tokenUsage"} {
+		if child, ok := raw[key].(map[string]any); ok {
+			if usage := usageFromMap(child); usage != nil {
+				return usage
+			}
+		}
+	}
+	return nil
+}
+
+func usageFromMap(m map[string]any) *bridge.TokenUsage {
+	if m == nil {
+		return nil
+	}
+	contextWindow := firstInt(m, "model_context_window", "modelContextWindow", "context_window", "contextWindow")
+	for _, key := range []string{"last_token_usage", "lastTokenUsage", "usage", "token_usage", "tokenUsage"} {
+		if child, ok := m[key].(map[string]any); ok {
+			if usage := usageFromFlatMap(child, contextWindow); usage != nil {
+				return usage
+			}
+		}
+	}
+	return usageFromFlatMap(m, contextWindow)
+}
+
+func usageFromFlatMap(m map[string]any, contextWindow int) *bridge.TokenUsage {
+	inputTokens := firstInt(m, "input_tokens", "inputTokens")
+	cachedInputTokens := firstInt(m, "cached_input_tokens", "cachedInputTokens")
+	outputTokens := firstInt(m, "output_tokens", "outputTokens")
+	reasoningTokens := firstInt(m, "reasoning_output_tokens", "reasoningOutputTokens")
+	totalTokens := firstInt(m, "total_tokens", "totalTokens")
+	if contextWindow <= 0 {
+		contextWindow = firstInt(m, "model_context_window", "modelContextWindow", "context_window", "contextWindow")
+	}
+	if totalTokens <= 0 && inputTokens <= 0 && outputTokens <= 0 {
+		return nil
+	}
+	usedTokens := currentContextTokens(totalTokens, inputTokens, outputTokens)
+	return &bridge.TokenUsage{
+		UsedTokens:            usedTokens,
+		TotalTokens:           totalTokens,
+		InputTokens:           inputTokens,
+		CachedInputTokens:     cachedInputTokens,
+		OutputTokens:          outputTokens,
+		ReasoningOutputTokens: reasoningTokens,
+		ContextWindow:         contextWindow,
+	}
+}
+
+func firstInt(m map[string]any, keys ...string) int {
+	for _, key := range keys {
+		switch v := m[key].(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case json.Number:
+			n, _ := v.Int64()
+			return int(n)
+		}
+	}
+	return 0
+}
+
+func resolveCodexHome(configured string, env map[string]string) string {
+	if value := strings.TrimSpace(configured); value != "" {
+		return value
+	}
+	if env != nil {
+		if value := strings.TrimSpace(env["CODEX_HOME"]); value != "" {
+			return value
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("CODEX_HOME")); value != "" {
+		return value
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".codex")
+}
+
+func findSessionFileInCodexHome(codexHome, sessionID string) string {
+	codexHome = strings.TrimSpace(codexHome)
+	sessionID = strings.TrimSpace(sessionID)
+	if codexHome == "" || sessionID == "" {
+		return ""
+	}
+	patterns := []string{
+		filepath.Join(codexHome, "sessions", "*", "*", "*", "rollout-*"+sessionID+".jsonl"),
+		filepath.Join(codexHome, "archived_sessions", "rollout-*"+sessionID+".jsonl"),
+	}
+	for _, pattern := range patterns {
+		if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
+			return matches[len(matches)-1]
+		}
+	}
+	return ""
+}
+
+func readTokenUsageFromRollout(path string) (*bridge.TokenUsage, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() <= 0 {
+		return nil, nil
+	}
+	start := int64(0)
+	if info.Size() > codexRolloutTailBytes {
+		start = info.Size() - codexRolloutTailBytes
+	}
+	buf := make([]byte, int(info.Size()-start))
+	n, err := f.ReadAt(buf, start)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	buf = buf[:n]
+	if start > 0 {
+		if idx := bytes.IndexByte(buf, '\n'); idx >= 0 {
+			buf = buf[idx+1:]
+		}
+	}
+	if usage := parseTokenUsageFromRolloutBytes(buf); usage != nil {
+		return usage, nil
+	}
+	return nil, nil
+}
+
+func parseTokenUsageFromRolloutBytes(data []byte) *bridge.TokenUsage {
+	lines := bytes.Split(data, []byte{'\n'})
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := bytes.TrimSpace(lines[i])
+		if len(line) == 0 {
+			continue
+		}
+		if usage := parseTokenUsageFromRolloutLine(line); usage != nil {
+			return usage
+		}
+	}
+	return nil
+}
+
+func parseTokenUsageFromRolloutLine(line []byte) *bridge.TokenUsage {
+	var entry struct {
+		Type    string          `json:"type"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal(line, &entry); err != nil || entry.Type != "event_msg" {
+		return nil
+	}
+	var payload struct {
+		Type string `json:"type"`
+		Info *struct {
+			TotalTokenUsage    tokenUsageSnake `json:"total_token_usage"`
+			LastTokenUsage     tokenUsageSnake `json:"last_token_usage"`
+			ModelContextWindow int             `json:"model_context_window"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(entry.Payload, &payload); err != nil {
+		return nil
+	}
+	if payload.Type != "token_count" || payload.Info == nil {
+		return nil
+	}
+	return tokenUsageFromSnake(payload.Info.LastTokenUsage, payload.Info.ModelContextWindow)
+}
+
+func tokenUsageFromSnake(usage tokenUsageSnake, contextWindow int) *bridge.TokenUsage {
+	if usage.TotalTokens <= 0 && usage.InputTokens <= 0 && usage.OutputTokens <= 0 {
+		return nil
+	}
+	return &bridge.TokenUsage{
+		UsedTokens:            currentContextTokens(usage.TotalTokens, usage.InputTokens, usage.OutputTokens),
+		TotalTokens:           usage.TotalTokens,
+		InputTokens:           usage.InputTokens,
+		CachedInputTokens:     usage.CachedInputTokens,
+		OutputTokens:          usage.OutputTokens,
+		ReasoningOutputTokens: usage.ReasoningOutputTokens,
+		ContextWindow:         contextWindow,
+	}
+}
+
+func currentContextTokens(totalTokens, inputTokens, outputTokens int) int {
+	if totalTokens > 0 {
+		return totalTokens
+	}
+	if inputTokens > 0 || outputTokens > 0 {
+		return inputTokens + outputTokens
+	}
+	return 0
 }
 
 func truncate(s string, maxRunes int) string {

@@ -32,6 +32,7 @@ echo '{"type":"turn.completed"}'
 	runner, err := codex.NewRunner(codex.Options{
 		WorkDir:     dir,
 		CLIPath:     fake,
+		CodexHome:   filepath.Join(dir, "codex-home"),
 		TurnTimeout: time.Second,
 	})
 	if err != nil {

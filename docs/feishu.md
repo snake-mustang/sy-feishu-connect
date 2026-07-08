@@ -168,11 +168,10 @@ domain = "feishu"
 | 事件名称 | 事件标识 | 用途 |
 | --- | --- | --- |
 | 接收消息 | `im.message.receive_v1` | 接收用户发送给机器人的消息 |
-| 机器人自定义菜单事件 | `application.bot.menu_v6` | 接收底部菜单“推送事件”点击 |
 
 保存后创建版本并发布。
 
-`application.bot.menu_v6` 必须添加。少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。
+底部菜单改用「发送文字」后，不需要再添加菜单事件。
 
 ## 第六步：配置底部自定义栏
 
@@ -185,28 +184,30 @@ domain = "feishu"
 推荐按 4 组来设计，用户更容易理解。每个菜单项都设置成：
 
 ```text
-响应动作：推送事件
-事件 ID：下面表格里的固定值
+响应动作：发送文字
+发送内容：下面表格里的命令
 ```
 
-| 分组 | 菜单项 | 推送事件 ID | 实际执行 |
-| --- | --- | --- | --- |
-| 会话 | 新建会话 | `session_new` | `/new` |
-| 会话 | 会话列表 | `session_list` | `/sessions` |
-| 会话 | 当前会话 | `session_current` | `/status` |
-| 执行 | 停止执行 | `exec_stop` | `/stop` |
-| 执行 | 当前状态 | `exec_status` | `/status` |
-| 执行 | 工作目录 | `exec_workdir` | `/pwd` |
-| 设置 | 模式 | `settings_mode` | `/mode` |
-| 设置 | 模型 | `settings_model` | `/model` |
-| 设置 | 帮助 | `settings_help` | `/help` |
-| 显示 | 显示思考（默认） | `display_thinking_on` | `/display thinking` |
-| 显示 | 关闭思考 | `display_thinking_off` | `/display final` |
-| 显示 | 极简模式 | `display_minimal` | `/display quiet` |
+| 分组 | 菜单项 | 发送内容 |
+| --- | --- | --- |
+| 会话 | 新建会话 | `/new` |
+| 会话 | 会话列表 | `/sessions` |
+| 会话 | 当前会话 | `/status` |
+| 执行 | 停止执行 | `/stop` |
+| 执行 | 当前状态 | `/status` |
+| 执行 | 工作目录 | `/pwd` |
+| 设置 | 模式 | `/mode` |
+| 设置 | 模型 | `/model` |
+| 设置 | 帮助 | `/help` |
+| 显示 | 显示思考（默认） | `/display thinking` |
+| 显示 | 关闭思考 | `/display final` |
+| 显示 | 极简模式 | `/display quiet` |
 
 默认会显示 Codex 返回的思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
 
-如果菜单点了没反应，先检查两件事：事件里有没有订阅 `application.bot.menu_v6`，应用有没有发布新版本。
+最终回答底部会自动附带模型、推理强度、token/context 占用和工作目录，方便复盘。
+
+如果菜单点了没反应，先检查两件事：菜单动作是不是「发送文字」，应用有没有发布新版本。
 
 当前已支持 `/help`、`/new`、`/status`、`/sessions`、`/stop`、`/pwd`、`/mode`、`/model`、`/display`、`/stats`、`/whoami`、`/reset`。
 

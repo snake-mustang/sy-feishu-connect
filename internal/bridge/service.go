@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/BurntSushi/toml"
 )
 
 type Options struct {
@@ -181,6 +185,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	}
 
 	var finalParts []string
+	var finalUsage *TokenUsage
 	var lastTool time.Time
 	for event := range events {
 		if event.SessionID != "" {
@@ -222,6 +227,10 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 				errText = event.Err.Error()
 				_ = s.platform.Send(ctx, msg.ReplyCtx, "Codex 执行失败: "+event.Err.Error())
 			}
+		case EventDone:
+			if event.Usage != nil {
+				finalUsage = event.Usage
+			}
 		}
 	}
 	final := strings.TrimSpace(strings.Join(finalParts, "\n\n"))
@@ -235,6 +244,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	if final == "" {
 		final = "Codex 已完成，但没有返回文本。"
 	}
+	final = appendReplyFooter(final, buildReplyFooter(s.runtime, finalUsage))
 	replyChars += len([]rune(final))
 	if err := s.platform.Send(ctx, msg.ReplyCtx, final); err != nil {
 		errText = err.Error()
@@ -573,4 +583,143 @@ func formatThinkingText(text string) string {
 
 func formatProgressText(text string) string {
 	return "执行中：\n" + strings.TrimSpace(text)
+}
+
+func appendReplyFooter(content, footer string) string {
+	footer = strings.TrimSpace(footer)
+	if footer == "" {
+		return content
+	}
+	content = strings.TrimRight(content, "\n")
+	if content == "" {
+		return "---\n" + footer
+	}
+	return content + "\n\n---\n" + footer
+}
+
+func buildReplyFooter(runtime RuntimeInfo, usage *TokenUsage) string {
+	hasRuntime := usage != nil ||
+		strings.TrimSpace(runtime.WorkDir) != "" ||
+		strings.TrimSpace(runtime.Model) != "" ||
+		strings.TrimSpace(runtime.ReasoningEffort) != "" ||
+		strings.TrimSpace(runtime.CodexHome) != ""
+	if !hasRuntime {
+		return ""
+	}
+	var lineParts []string
+	model := strings.TrimSpace(runtime.Model)
+	effort := strings.TrimSpace(runtime.ReasoningEffort)
+	if model == "" || effort == "" {
+		defaultModel, defaultEffort := readCodexRuntimeDefaults(runtime.CodexHome)
+		if model == "" {
+			model = defaultModel
+		}
+		if effort == "" {
+			effort = defaultEffort
+		}
+	}
+	if model == "" && (usage != nil || strings.TrimSpace(runtime.WorkDir) != "" || effort != "") {
+		model = "Codex 默认模型"
+	}
+	if model != "" {
+		lineParts = append(lineParts, model)
+	}
+	if effort != "" {
+		lineParts = append(lineParts, "effort:"+effort)
+	}
+	if usage != nil {
+		var counts []string
+		if usage.OutputTokens > 0 {
+			counts = append(counts, "out "+formatTokenCount(usage.OutputTokens))
+		}
+		if usage.InputTokens > 0 || usage.CacheCreationInputTokens > 0 || usage.CachedInputTokens > 0 {
+			counts = append(counts, fmt.Sprintf("in %s cw %s cr %s",
+				formatTokenCount(usage.InputTokens),
+				formatTokenCount(usage.CacheCreationInputTokens),
+				formatTokenCount(usage.CachedInputTokens)))
+		}
+		if len(counts) > 0 {
+			lineParts = append(lineParts, strings.Join(counts, " "))
+		}
+		if usage.ContextWindow > 0 {
+			used := usage.UsedTokens
+			if used <= 0 {
+				used = usage.TotalTokens
+			}
+			if used <= 0 {
+				used = usage.InputTokens + usage.OutputTokens
+			}
+			if used > 0 {
+				pct := used * 100 / usage.ContextWindow
+				if pct > 100 {
+					pct = 100
+				}
+				lineParts = append(lineParts, fmt.Sprintf("ctx %d%%", pct))
+			}
+		}
+	}
+	line := strings.Join(lineParts, " · ")
+	workDir := compactPath(strings.TrimSpace(runtime.WorkDir))
+	switch {
+	case line != "" && workDir != "":
+		return line + "\n" + workDir
+	case line != "":
+		return line
+	case workDir != "":
+		return workDir
+	default:
+		return ""
+	}
+}
+
+func formatTokenCount(n int) string {
+	if n < 0 {
+		n = 0
+	}
+	switch {
+	case n < 1000:
+		return fmt.Sprintf("%d", n)
+	case n < 1000000:
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
+	default:
+		return fmt.Sprintf("%.1fM", float64(n)/1000000)
+	}
+}
+
+func compactPath(path string) string {
+	if path == "" {
+		return ""
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		home = strings.TrimRight(home, "/")
+		if path == home {
+			return "~"
+		}
+		if strings.HasPrefix(path, home+"/") {
+			return "~" + strings.TrimPrefix(path, home)
+		}
+	}
+	return path
+}
+
+func readCodexRuntimeDefaults(codexHome string) (string, string) {
+	home := strings.TrimSpace(codexHome)
+	if home == "" {
+		home = strings.TrimSpace(os.Getenv("CODEX_HOME"))
+	}
+	if home == "" {
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return "", ""
+		}
+		home = filepath.Join(userHome, ".codex")
+	}
+	var cfg struct {
+		Model                string `toml:"model"`
+		ModelReasoningEffort string `toml:"model_reasoning_effort"`
+	}
+	if _, err := toml.DecodeFile(filepath.Join(home, "config.toml"), &cfg); err != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(cfg.Model), strings.TrimSpace(cfg.ModelReasoningEffort)
 }

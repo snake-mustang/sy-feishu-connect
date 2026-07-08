@@ -424,14 +424,14 @@ domain = "feishu"</code></pre>
             <div class="step"><div><b>启用机器人</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「应用能力」->「机器人」。</div></div>
             <div class="step"><div><b>复制 App ID 和 App Secret</b>打开 <a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">飞书开发者后台</a>，进入你的应用，路径：应用后台 ->「凭据与基础信息」。</div></div>
             <div class="step"><div><b>添加权限</b>进入「权限管理」，按下面的 JSON 批量导入消息权限。</div></div>
-            <div class="step"><div><b>添加事件</b>进入「事件与回调」，选择长连接，订阅 <code>im.message.receive_v1</code> 和 <code>application.bot.menu_v6</code>。</div></div>
+            <div class="step"><div><b>添加事件</b>进入「事件与回调」，选择长连接，只订阅 <code>im.message.receive_v1</code>。</div></div>
             <div class="step"><div><b>配置菜单并发布</b>进入「机器人自定义菜单」，配置 4 组底部栏；最后到「版本管理与发布」创建版本并发布。</div></div>
           </div>
           <div class="grid-2">
             <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-1.png" alt="飞书事件与回调选择长连接"><div class="caption">事件与回调：选择「使用长连接接收事件」。</div></div>
-            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-2.png" alt="飞书添加接收消息事件"><div class="caption">添加事件：至少添加 <code>im.message.receive_v1</code>，菜单还需要 <code>application.bot.menu_v6</code>。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-2.png" alt="飞书添加接收消息事件"><div class="caption">添加事件：只添加 <code>im.message.receive_v1</code>。底部菜单用「发送文字」，不需要菜单事件。</div></div>
             <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-3.png" alt="飞书机器人自定义菜单主菜单配置"><div class="caption">底部栏：推荐 4 组，会话、执行、设置、显示。</div></div>
-            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-4.png" alt="飞书机器人菜单推送事件配置"><div class="caption">子菜单：响应动作选「推送事件」，事件 ID 填固定值。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-4.png" alt="飞书机器人菜单发送文字配置"><div class="caption">子菜单：响应动作选「发送文字」，内容填固定命令。</div></div>
           </div>
         </section>
 
@@ -480,10 +480,9 @@ domain = "feishu"</code></pre>
 	            <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
 	            <tbody>
 	              <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息。</td></tr>
-	              <tr><td>机器人自定义菜单事件</td><td><code>application.bot.menu_v6</code></td><td>接收底部菜单“推送事件”点击。</td></tr>
 	            </tbody>
 	          </table>
-	          <div class="callout warn"><code>application.bot.menu_v6</code> 必须添加。少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。</div>
+	          <div class="callout ok">底部菜单改用「发送文字」后，不需要再添加菜单事件。</div>
 	          <div class="callout warn">飞书后台改完权限、事件以后，一定要去「版本管理与发布」发布新版本。</div>
 	        </section>
 
@@ -496,22 +495,22 @@ domain = "feishu"</code></pre>
             <div class="menu-group"><h3>3. 设置</h3><ul><li>模式：<code>/mode</code></li><li>模型：<code>/model</code></li><li>帮助：<code>/help</code></li></ul></div>
             <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考（默认）：<code>/display thinking</code></li><li>关闭思考：<code>/display final</code></li><li>极简模式：<code>/display quiet</code></li></ul></div>
           </div>
-	          <div class="callout ok">每个菜单项都选「推送事件」，事件 ID 填下面的固定值。默认会显示 Codex 返回的思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」。菜单点了没反应时，先检查事件订阅里有没有 <code>application.bot.menu_v6</code>，再检查应用是否已发布。</div>
+	          <div class="callout ok">每个菜单项都选「发送文字」，发送内容填下面的命令。默认会显示 Codex 返回的思考摘要、执行过程和工具进度；最终回答底部会附带模型、推理强度、token/context 占用和工作目录。只想看最终结果时，再点「关闭思考」。菜单点了没反应时，先检查发送内容是否正确，再检查应用是否已发布。</div>
 	          <table>
-	            <thead><tr><th>分组</th><th>菜单项</th><th>推送事件 ID</th><th>实际执行</th></tr></thead>
+	            <thead><tr><th>分组</th><th>菜单项</th><th>发送内容</th></tr></thead>
 	            <tbody>
-	              <tr><td>会话</td><td>新建会话</td><td><code>session_new</code></td><td><code>/new</code></td></tr>
-	              <tr><td>会话</td><td>会话列表</td><td><code>session_list</code></td><td><code>/sessions</code></td></tr>
-	              <tr><td>会话</td><td>当前会话</td><td><code>session_current</code></td><td><code>/status</code></td></tr>
-	              <tr><td>执行</td><td>停止执行</td><td><code>exec_stop</code></td><td><code>/stop</code></td></tr>
-	              <tr><td>执行</td><td>当前状态</td><td><code>exec_status</code></td><td><code>/status</code></td></tr>
-	              <tr><td>执行</td><td>工作目录</td><td><code>exec_workdir</code></td><td><code>/pwd</code></td></tr>
-	              <tr><td>设置</td><td>模式</td><td><code>settings_mode</code></td><td><code>/mode</code></td></tr>
-	              <tr><td>设置</td><td>模型</td><td><code>settings_model</code></td><td><code>/model</code></td></tr>
-	              <tr><td>设置</td><td>帮助</td><td><code>settings_help</code></td><td><code>/help</code></td></tr>
-	              <tr><td>显示</td><td>显示思考（默认）</td><td><code>display_thinking_on</code></td><td><code>/display thinking</code></td></tr>
-	              <tr><td>显示</td><td>关闭思考</td><td><code>display_thinking_off</code></td><td><code>/display final</code></td></tr>
-	              <tr><td>显示</td><td>极简模式</td><td><code>display_minimal</code></td><td><code>/display quiet</code></td></tr>
+	              <tr><td>会话</td><td>新建会话</td><td><code>/new</code></td></tr>
+	              <tr><td>会话</td><td>会话列表</td><td><code>/sessions</code></td></tr>
+	              <tr><td>会话</td><td>当前会话</td><td><code>/status</code></td></tr>
+	              <tr><td>执行</td><td>停止执行</td><td><code>/stop</code></td></tr>
+	              <tr><td>执行</td><td>当前状态</td><td><code>/status</code></td></tr>
+	              <tr><td>执行</td><td>工作目录</td><td><code>/pwd</code></td></tr>
+	              <tr><td>设置</td><td>模式</td><td><code>/mode</code></td></tr>
+	              <tr><td>设置</td><td>模型</td><td><code>/model</code></td></tr>
+	              <tr><td>设置</td><td>帮助</td><td><code>/help</code></td></tr>
+	              <tr><td>显示</td><td>显示思考（默认）</td><td><code>/display thinking</code></td></tr>
+	              <tr><td>显示</td><td>关闭思考</td><td><code>/display final</code></td></tr>
+	              <tr><td>显示</td><td>极简模式</td><td><code>/display quiet</code></td></tr>
 	            </tbody>
 	          </table>
           <div class="diagram">
@@ -569,10 +568,10 @@ domain = "feishu"</code></pre>
         <section id="reuse">
           <h2>10. 可复用建议</h2>
           <div class="grid-2">
-            <div class="card"><h3>统一应用模板</h3><p>提前准备好飞书应用名称、权限 JSON、事件列表和菜单事件 ID，发给同事时只让他们照着复制。</p></div>
+            <div class="card"><h3>统一应用模板</h3><p>提前准备好飞书应用名称、权限 JSON、事件列表和菜单命令，发给同事时只让他们照着复制。</p></div>
             <div class="card"><h3>统一统计口径</h3><p>配置工具只让用户填写中文姓名；管理员预置统计地址，远程只收 <code>姓名</code> 和 <code>是否成功</code>。</p></div>
             <div class="card"><h3>统一菜单结构</h3><p>固定 4 组底部栏：会话、执行、设置、显示。用户不用理解命令，也能点菜单操作。</p></div>
-            <div class="card"><h3>统一发布检查</h3><p>每次改权限、事件或菜单后，都要创建版本并发布。菜单不生效时先查 <code>application.bot.menu_v6</code>。</p></div>
+            <div class="card"><h3>统一发布检查</h3><p>每次改权限、事件或菜单后，都要创建版本并发布。菜单不生效时先查动作是否为「发送文字」。</p></div>
           </div>
         </section>
 
@@ -591,7 +590,7 @@ domain = "feishu"</code></pre>
               <text x="395" y="184" text-anchor="middle" font-size="12" fill="#5e6b7d">版本管理与发布</text>
               <rect x="530" y="130" width="190" height="70" rx="8" fill="#fff" stroke="#d8e2ee"/>
               <text x="625" y="160" text-anchor="middle" font-size="16" font-weight="800">事件添加了吗</text>
-              <text x="625" y="184" text-anchor="middle" font-size="12" fill="#5e6b7d">消息 + 菜单事件</text>
+              <text x="625" y="184" text-anchor="middle" font-size="12" fill="#5e6b7d">只要消息事件</text>
               <rect x="760" y="130" width="150" height="70" rx="8" fill="#fff" stroke="#d8e2ee"/>
               <text x="835" y="160" text-anchor="middle" font-size="16" font-weight="800">群里 @了吗</text>
               <text x="835" y="184" text-anchor="middle" font-size="12" fill="#5e6b7d">@机器人</text>
@@ -620,7 +619,6 @@ domain = "feishu"</code></pre>
             <div class="check">飞书应用已启用机器人</div>
             <div class="check">权限已添加并发布</div>
             <div class="check">事件 im.message.receive_v1 已添加</div>
-            <div class="check">事件 application.bot.menu_v6 已添加</div>
             <div class="check">底部自定义栏已配置 4 组</div>
             <div class="check">start 终端窗口保持打开</div>
             <div class="check">用 /stats 查看使用统计</div>

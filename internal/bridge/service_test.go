@@ -55,6 +55,25 @@ func (a *thinkingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event
 	return ch, nil
 }
 
+type usageAgent struct{}
+
+func (a *usageAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
+	ch := make(chan Event, 3)
+	ch <- Event{Type: EventStarted, SessionID: "thread-1"}
+	ch <- Event{Type: EventText, Text: "reply", SessionID: "thread-1"}
+	ch <- Event{Type: EventDone, SessionID: "thread-1", Usage: &TokenUsage{
+		UsedTokens:               3700,
+		TotalTokens:              3700,
+		InputTokens:              1200,
+		CachedInputTokens:        900,
+		CacheCreationInputTokens: 0,
+		OutputTokens:             80,
+		ContextWindow:            10000,
+	}}
+	close(ch)
+	return ch, nil
+}
+
 type failingAgent struct{}
 
 func (a *failingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
@@ -290,6 +309,35 @@ func TestFinalDisplayModeSuppressesThinking(t *testing.T) {
 
 	if len(platform.sent) != 1 || platform.sent[0] != "reply" {
 		t.Fatalf("sent=%#v", platform.sent)
+	}
+}
+
+func TestRunTurnAppendsReplyFooter(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:         &usageAgent{},
+		Platform:      platform,
+		DataDir:       t.TempDir(),
+		QueueMessages: false,
+		Runtime: RuntimeInfo{
+			WorkDir:         "/tmp/project",
+			Model:           "gpt-5.5",
+			ReasoningEffort: "xhigh",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", Text: "hello"})
+
+	if len(platform.sent) != 1 {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+	for _, want := range []string{"reply", "---", "gpt-5.5", "effort:xhigh", "out 80", "in 1.2k cw 0 cr 900", "ctx 37%", "/tmp/project"} {
+		if !strings.Contains(platform.sent[0], want) {
+			t.Fatalf("missing %q in %q", want, platform.sent[0])
+		}
 	}
 }
 

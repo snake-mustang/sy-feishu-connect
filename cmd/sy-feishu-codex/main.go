@@ -82,6 +82,7 @@ func run() error {
 			Mode:            cfg.Codex.Mode,
 			Model:           cfg.Codex.Model,
 			ReasoningEffort: cfg.Codex.ReasoningEffort,
+			CodexHome:       cfg.Codex.CodexHome,
 		},
 		Usage: bridge.UsageOptions{
 			OperatorName: cfg.Usage.OperatorName,

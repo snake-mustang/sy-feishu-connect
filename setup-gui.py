@@ -257,8 +257,8 @@ level = "info"
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
             Result("飞书后台：添加权限", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于本机统计时自动显示飞书姓名。敏感权限 im:message.group_msg 默认不需要。"),
-            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1 和 application.bot.menu_v6。"),
-            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「推送事件」，事件 ID 填报告里的固定值。"),
+            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，只订阅 im.message.receive_v1。"),
+            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「发送文字」，内容填报告里的命令。"),
             Result("飞书后台：发布应用", "warn", "每次改权限、事件或菜单后，都要到「版本管理与发布」创建版本并发布。"),
         ])
 
@@ -348,10 +348,9 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
     <tbody>
       <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息</td></tr>
-      <tr><td>机器人自定义菜单事件</td><td><code>application.bot.menu_v6</code></td><td>接收底部菜单“推送事件”点击</td></tr>
     </tbody>
   </table>
-  <p><strong><code>application.bot.menu_v6</code> 必须添加。</strong>少了它，用户点底部菜单时飞书不会把菜单事件发给本机长连接。</p>
+  <p>底部菜单改用「发送文字」后，不需要再添加菜单事件。</p>
 </section>
 <section class="panel">
   <h2>推荐飞书底部自定义栏</h2>
@@ -361,7 +360,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
     <div><h3>4. 显示</h3><p>显示思考（默认） <code>/display thinking</code><br>关闭思考 <code>/display final</code><br>极简模式 <code>/display quiet</code></p></div>
   </div>
-  <p><strong>所有菜单项都选「推送事件」。</strong>事件 ID 用：<code>session_new</code>、<code>session_list</code>、<code>session_current</code>、<code>exec_stop</code>、<code>exec_status</code>、<code>exec_workdir</code>、<code>settings_mode</code>、<code>settings_model</code>、<code>settings_help</code>、<code>display_thinking_on</code>、<code>display_thinking_off</code>、<code>display_minimal</code>。</p>
+  <p><strong>所有菜单项都选「发送文字」。</strong>发送内容直接填上面的命令，例如 <code>/new</code>、<code>/status</code>、<code>/display thinking</code>。</p>
 </section>
 <section class="panel">
   <h2>下一步</h2>
