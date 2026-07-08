@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>sy-feishu-connect 快速接入版图文教程</title>
+  <title>sy-feishu-connect 三步上手图文教程</title>
   <style>
     :root {
       color-scheme: light;
@@ -55,7 +55,7 @@
     }
     h1 {
       margin: 18px 0 12px;
-      font-size: clamp(34px, 5vw, 58px);
+      font-size: clamp(34px, 4.2vw, 50px);
       line-height: 1.05;
       letter-spacing: 0;
     }
@@ -150,6 +150,30 @@
     .callout.ok { background: #effaf3; border-left-color: var(--green); }
     .callout.warn { background: #fff8ed; border-left-color: var(--orange); }
     .callout.danger { background: #fff5f5; border-left-color: var(--red); }
+    .callout.boost {
+      background: #fff8ed;
+      border-left-color: var(--orange);
+      font-weight: 750;
+    }
+    .scenario-lines {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .scenario-lines div {
+      padding-left: 18px;
+      position: relative;
+    }
+    .scenario-lines div::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: .78em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .card {
@@ -270,15 +294,14 @@
       font-size: 14px;
     }
     .check::before { content: "✓"; color: var(--green); font-weight: 900; margin-right: 7px; }
-    footer {
-      padding: 26px 56px;
+    .thanks-note {
+      padding-top: 18px;
       color: var(--muted);
-      border-top: 1px solid var(--line);
-      background: #fbfdff;
-      font-size: 14px;
+      font-size: 13px;
     }
+    .thanks-note p { margin: 0; }
     @media (max-width: 920px) {
-      header, main, footer { padding-left: 22px; padding-right: 22px; }
+      header, main { padding-left: 22px; padding-right: 22px; }
       main, .hero-cards, .grid-2, .grid-3, .checklist { grid-template-columns: 1fr; }
       .toc { position: static; }
     }
@@ -287,11 +310,20 @@
 <body>
   <div class="page">
     <header>
-      <span class="badge">快速接入版 · 手机飞书操作 Codex CLI</span>
-      <h1>手机飞书随时随地操作 Codex，实现口袋 Agent</h1>
-      <p class="lead">把 Codex CLI 带到手机飞书里：人不在电脑前，任务也能先跑起来。用户只需要记住三步：安装、检查配置与启动、飞书开发者后台配置。</p>
-      <div class="callout danger"><b>仅支持在飞书个人账号使用！该工具仅支持 Codex CLI，非 Codex App。</b><br>点赞超 100，马上出 V2 版支持 App 和记录同步 👍</div>
-      <div class="callout ok"><b>解决什么场景的问题：</b>让你能随时随地使用 Codex。做菜前手机发起一个 agent，开车前安排一个 agent，开会前丢一个 agent，上厕所前也能发起一个 agent。</div>
+      <span class="badge">三步上手 · 手机飞书操作 Codex CLI</span>
+      <h1>手机飞书操作 Codex，随时起 Agent</h1>
+      <p class="lead">把 Codex CLI 放进手机飞书：人不在电脑前，任务也能先跑起来。用户只需要记住三步：安装、检查配置与启动、飞书开发者后台配置。</p>
+      <div class="callout danger"><b>仅支持在飞书个人账号使用！该工具仅支持 Codex CLI，非 Codex App。</b></div>
+      <div class="callout boost">点赞超过 100，V2 立刻安排：支持 Codex App，并补上同步记录 👍</div>
+      <div class="callout ok">
+        <b>解决什么场景的问题：</b>让你能随时随地使用 Codex。
+        <div class="scenario-lines">
+          <div>做菜前，手机发起一个 Agent，让它先读项目。</div>
+          <div>开车前，丢一个排查任务，到了再看结果。</div>
+          <div>开会前，让它先整理方案、改文档。</div>
+          <div>上厕所前，也能顺手安排一个小任务。</div>
+        </div>
+      </div>
       <div class="hero-cards">
         <div class="hero-card"><b>1. 安装</b><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</code></div>
         <div class="hero-card"><b>2. 检查配置与启动</b><code>sy-feishu-connect doctor</code><br><code>sy-feishu-connect setup</code><br><code>sy-feishu-connect start</code></div>
@@ -302,7 +334,7 @@
     <main>
       <article>
         <section id="big-picture">
-          <h2>0. 它解决的真实场景</h2>
+          <h2>它解决的真实场景</h2>
           <p>核心理解：飞书只是入口，真正执行任务的是你电脑上的 Codex CLI。你在手机飞书发一句话，本机工具收到后交给 Codex 执行，再把结果回到飞书。</p>
           <div class="grid-2">
             <div class="card"><h3>离开电脑前</h3><p>出门、开会、做饭、通勤前，把任务先丢给 Codex 跑起来。</p></div>
@@ -554,15 +586,14 @@ domain = "feishu"</code></pre>
           </div>
         </section>
 
-        <section id="thanks">
-          <h2>13. 鸣谢</h2>
-          <p>感谢欧阳聪专家的分享推荐和建议。</p>
+        <section id="thanks" class="thanks-note">
+          <p>鸣谢：感谢欧阳聪专家的分享推荐和建议。</p>
         </section>
       </article>
 
       <aside class="toc">
         <h2>快速导航</h2>
-        <a href="#big-picture">0. 真实场景</a>
+        <a href="#big-picture">真实场景</a>
         <a href="#install">1. 安装</a>
         <a href="#doctor">2. 检查</a>
         <a href="#setup">3. 生成配置</a>
@@ -574,13 +605,9 @@ domain = "feishu"</code></pre>
         <a href="#effect">9. 效果截图</a>
         <a href="#reuse">10. 可复用建议</a>
         <a href="#troubleshoot">11. 排查图</a>
-        <a href="#thanks">13. 鸣谢</a>
+        <a href="#thanks">鸣谢</a>
       </aside>
     </main>
-
-    <footer>
-      这份 HTML 可以直接打开，也可以复制到飞书文档继续编辑。推荐用户按三步走：安装、检查配置与启动、飞书开发者后台配置。
-    </footer>
   </div>
 </body>
 </html>
