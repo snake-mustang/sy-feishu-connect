@@ -256,7 +256,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 }
 
 func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
-	text := strings.TrimSpace(msg.Text)
+	text := normalizeCommandText(msg.Text)
 	if !strings.HasPrefix(text, "/") {
 		return false
 	}
@@ -407,6 +407,39 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func normalizeCommandText(raw string) string {
+	text := strings.TrimSpace(raw)
+	if strings.HasPrefix(text, "/") {
+		return text
+	}
+	switch strings.ToLower(strings.TrimSpace(text)) {
+	case "新建会话":
+		return "/new"
+	case "会话列表":
+		return "/sessions"
+	case "当前会话", "当前状态":
+		return "/status"
+	case "停止执行":
+		return "/stop"
+	case "工作目录":
+		return "/pwd"
+	case "模式":
+		return "/mode"
+	case "模型":
+		return "/model"
+	case "帮助":
+		return "/help"
+	case "显示思考", "显示思考（默认）", "显示思考(默认)":
+		return "/display thinking"
+	case "关闭思考":
+		return "/display final"
+	case "极简模式":
+		return "/display quiet"
+	default:
+		return text
 	}
 }
 

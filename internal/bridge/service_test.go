@@ -242,6 +242,47 @@ func TestRuntimeCommands(t *testing.T) {
 	}
 }
 
+func TestFeishuSendTextMenuLabelsAreCommands(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:    &fakeAgent{},
+		Platform: platform,
+		DataDir:  t.TempDir(),
+		Runtime: RuntimeInfo{
+			WorkDir: "/tmp/project",
+			Model:   "gpt-5",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	labels := []string{
+		"新建会话",
+		"会话列表",
+		"当前会话",
+		"停止执行",
+		"当前状态",
+		"工作目录",
+		"模式",
+		"模型",
+		"帮助",
+		"显示思考（默认）",
+		"关闭思考",
+		"极简模式",
+	}
+	for _, label := range labels {
+		if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", Text: label}) {
+			t.Fatalf("menu label %q not handled", label)
+		}
+	}
+	joined := strings.Join(platform.sent, "\n")
+	for _, want := range []string{"新的 Codex 会话", "暂无已保存会话", "当前聊天还没有绑定", "没有正在执行", "/tmp/project", "gpt-5", "显示思考", "只看结果", "极简模式"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %q in %#v", want, platform.sent)
+		}
+	}
+}
+
 func TestDefaultDisplayModeSendsProgress(t *testing.T) {
 	platform := &fakePlatform{}
 	svc, err := New(Options{

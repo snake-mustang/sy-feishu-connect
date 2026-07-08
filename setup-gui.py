@@ -258,7 +258,7 @@ level = "info"
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
             Result("飞书后台：添加权限", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于本机统计时自动显示飞书姓名。敏感权限 im:message.group_msg 默认不需要。"),
             Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，只订阅 im.message.receive_v1。"),
-            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「发送文字」，内容填报告里的命令。"),
+            Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「发送文字」，菜单名称照抄报告里的中文。"),
             Result("飞书后台：发布应用", "warn", "每次改权限、事件或菜单后，都要到「版本管理与发布」创建版本并发布。"),
         ])
 
@@ -355,12 +355,12 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
 <section class="panel">
   <h2>推荐飞书底部自定义栏</h2>
   <div class="menu-grid">
-    <div><h3>1. 会话</h3><p>新建会话 <code>/new</code><br>会话列表 <code>/sessions</code><br>当前会话 <code>/status</code></p></div>
-    <div><h3>2. 执行</h3><p>停止执行 <code>/stop</code><br>当前状态 <code>/status</code><br>工作目录 <code>/pwd</code></p></div>
-    <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
-    <div><h3>4. 显示</h3><p>显示思考（默认） <code>/display thinking</code><br>关闭思考 <code>/display final</code><br>极简模式 <code>/display quiet</code></p></div>
+    <div><h3>1. 会话</h3><p>新建会话<br>会话列表<br>当前会话</p></div>
+    <div><h3>2. 执行</h3><p>停止执行<br>当前状态<br>工作目录</p></div>
+    <div><h3>3. 设置</h3><p>模式<br>模型<br>帮助</p></div>
+    <div><h3>4. 显示</h3><p>显示思考（默认）<br>关闭思考<br>极简模式</p></div>
   </div>
-  <p><strong>所有菜单项都选「发送文字」。</strong>发送内容直接填上面的命令，例如 <code>/new</code>、<code>/status</code>、<code>/display thinking</code>。</p>
+  <p><strong>所有菜单项都选「发送文字」。</strong>飞书会把菜单名称当作文字发给机器人，所以菜单名称照抄上面的中文即可；工具会自动识别成 <code>/new</code>、<code>/status</code>、<code>/display thinking</code> 等命令。</p>
 </section>
 <section class="panel">
   <h2>下一步</h2>
