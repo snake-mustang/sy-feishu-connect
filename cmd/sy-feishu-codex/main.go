@@ -77,6 +77,12 @@ func run() error {
 		Platform:      bot,
 		DataDir:       cfg.Bridge.DataDir,
 		QueueMessages: cfg.Bridge.QueueMessages,
+		Runtime: bridge.RuntimeInfo{
+			WorkDir:         cfg.Codex.WorkDir,
+			Mode:            cfg.Codex.Mode,
+			Model:           cfg.Codex.Model,
+			ReasoningEffort: cfg.Codex.ReasoningEffort,
+		},
 		Usage: bridge.UsageOptions{
 			OperatorName: cfg.Usage.OperatorName,
 			EmployeeID:   cfg.Usage.EmployeeID,

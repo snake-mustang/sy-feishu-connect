@@ -151,6 +151,54 @@ func TestStatusCommand(t *testing.T) {
 	}
 }
 
+func TestMenuMessageUsesLatestUserSession(t *testing.T) {
+	svc, err := New(Options{
+		Agent:    &fakeAgent{},
+		Platform: &fakePlatform{},
+		DataDir:  t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	normal := svc.bindMessageSession(Message{SessionKey: "feishu:chat-a:ou_user", ChatID: "chat-a", ChatType: "p2p", UserID: "ou_user", Text: "hello"})
+	if normal.SessionKey != "feishu:chat-a:ou_user" {
+		t.Fatalf("normal session=%q", normal.SessionKey)
+	}
+	menu := svc.bindMessageSession(Message{SessionKey: "feishu:menu:ou_user", ChatType: "menu", UserID: "ou_user", Text: "/status"})
+	if menu.SessionKey != "feishu:chat-a:ou_user" {
+		t.Fatalf("menu session=%q", menu.SessionKey)
+	}
+}
+
+func TestRuntimeCommands(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:    &fakeAgent{},
+		Platform: platform,
+		DataDir:  t.TempDir(),
+		Runtime: RuntimeInfo{
+			WorkDir:         "/tmp/project",
+			Mode:            "auto-edit",
+			Model:           "gpt-5",
+			ReasoningEffort: "high",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"/pwd", "/mode", "/model", "/display full", "/stop"} {
+		if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", Text: text}) {
+			t.Fatalf("command %q not handled", text)
+		}
+	}
+	joined := strings.Join(platform.sent, "\n")
+	for _, want := range []string{"/tmp/project", "auto-edit", "gpt-5", "显示思考", "没有正在执行"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %q in %#v", want, platform.sent)
+		}
+	}
+}
+
 func TestStatsAndWhoamiCommands(t *testing.T) {
 	platform := &fakePlatform{profiles: map[string]UserProfile{
 		"ou_user": {Name: "Alice", EmployeeNo: "E001"},

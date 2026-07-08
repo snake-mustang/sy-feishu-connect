@@ -15,6 +15,7 @@ type Options struct {
 	DataDir       string
 	QueueMessages bool
 	Usage         UsageOptions
+	Runtime       RuntimeInfo
 }
 
 type Service struct {
@@ -23,8 +24,15 @@ type Service struct {
 	store         *Store
 	usage         *UsageTracker
 	queueMessages bool
+	runtime       RuntimeInfo
 	mu            sync.Mutex
 	sessions      map[string]*sessionWorker
+	activeTurns   map[string]*activeTurn
+	latestSession map[string]string
+}
+
+type activeTurn struct {
+	cancel context.CancelFunc
 }
 
 type sessionWorker struct {
@@ -55,7 +63,10 @@ func New(opts Options) (*Service, error) {
 		store:         store,
 		usage:         usage,
 		queueMessages: opts.QueueMessages,
+		runtime:       opts.Runtime,
 		sessions:      map[string]*sessionWorker{},
+		activeTurns:   map[string]*activeTurn{},
+		latestSession: map[string]string{},
 	}, nil
 }
 
@@ -73,6 +84,7 @@ func (s *Service) Close(ctx context.Context) error {
 }
 
 func (s *Service) Receive(ctx context.Context, msg Message) {
+	msg = s.bindMessageSession(msg)
 	if strings.TrimSpace(msg.Text) == "" {
 		return
 	}
@@ -134,7 +146,11 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	success := false
 	replyChars := 0
 	errText := ""
+	turnCtx, cancel := context.WithCancel(ctx)
+	turn := s.setActiveTurn(msg.SessionKey, cancel)
 	defer func() {
+		s.clearActiveTurn(msg.SessionKey, turn)
+		cancel()
 		if err := s.recordUsage(ctx, UsageEvent{
 			Time:       start,
 			SessionKey: msg.SessionKey,
@@ -155,7 +171,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 
 	_ = s.platform.ReactWorking(ctx, msg.ReplyCtx)
 	state := s.store.Get(msg.SessionKey)
-	events, err := s.agent.Run(ctx, AgentRequest{SessionID: state.ThreadID, Prompt: msg.Text})
+	events, err := s.agent.Run(turnCtx, AgentRequest{SessionID: state.ThreadID, Prompt: msg.Text})
 	if err != nil {
 		errText = err.Error()
 		_ = s.platform.Send(ctx, msg.ReplyCtx, "Codex 启动失败: "+err.Error())
@@ -182,12 +198,20 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 			}
 		case EventError:
 			if event.Err != nil {
+				if turnCtx.Err() != nil {
+					errText = "stopped"
+					continue
+				}
 				errText = event.Err.Error()
 				_ = s.platform.Send(ctx, msg.ReplyCtx, "Codex 执行失败: "+event.Err.Error())
 			}
 		}
 	}
 	final := strings.TrimSpace(strings.Join(finalParts, "\n\n"))
+	if final == "" && turnCtx.Err() != nil {
+		errText = "stopped"
+		return
+	}
 	if final == "" && errText != "" {
 		return
 	}
@@ -237,6 +261,11 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 /new - 为当前聊天开启新的 Codex 会话
 /status - 查看当前会话绑定的 Codex thread_id
 /sessions - 列出最近会话
+/stop - 停止当前会话正在执行的 Codex
+/pwd - 查看 Codex 工作目录
+/mode - 查看当前执行模式
+/model - 查看当前模型配置
+/display full|compact|quiet - 切换显示入口
 /stats - 查看使用统计
 /whoami - 查看你的飞书用户标识
 /help - 显示帮助`))
@@ -279,6 +308,47 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		_ = s.platform.Send(ctx, msg.ReplyCtx, b.String())
 		record(true)
 		return true
+	case "/stop":
+		_ = rest
+		if s.stopTurn(msg.SessionKey) {
+			_ = s.platform.Send(ctx, msg.ReplyCtx, "已请求停止当前 Codex 执行。")
+		} else {
+			_ = s.platform.Send(ctx, msg.ReplyCtx, "当前会话没有正在执行的 Codex 任务。")
+		}
+		record(true)
+		return true
+	case "/pwd":
+		_ = rest
+		workDir := fallback(s.runtime.WorkDir, "(未配置)")
+		_ = s.platform.Send(ctx, msg.ReplyCtx, "当前 Codex 工作目录:\n"+workDir)
+		record(true)
+		return true
+	case "/mode":
+		_ = rest
+		_ = s.platform.Send(ctx, msg.ReplyCtx, "当前 Codex 模式: "+fallback(s.runtime.Mode, "suggest")+"\n\nsuggest=只读建议；auto-edit=可编辑工作区；yolo=跳过审批和沙箱。")
+		record(true)
+		return true
+	case "/model":
+		_ = rest
+		model := strings.TrimSpace(s.runtime.Model)
+		if model == "" {
+			model = "Codex 默认模型"
+		}
+		effort := strings.TrimSpace(s.runtime.ReasoningEffort)
+		if effort == "" {
+			effort = "默认"
+		}
+		_ = s.platform.Send(ctx, msg.ReplyCtx, fmt.Sprintf("当前模型: %s\n推理强度: %s", model, effort))
+		record(true)
+		return true
+	case "/display":
+		mode := strings.TrimSpace(rest)
+		if mode == "" {
+			mode = "compact"
+		}
+		_ = s.platform.Send(ctx, msg.ReplyCtx, displayModeText(mode))
+		record(true)
+		return true
 	case "/stats":
 		_ = rest
 		_ = s.platform.Send(ctx, msg.ReplyCtx, s.usage.Report(10))
@@ -303,6 +373,59 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Service) bindMessageSession(msg Message) Message {
+	if strings.TrimSpace(msg.UserID) == "" {
+		return msg
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if msg.ChatType == "menu" {
+		if latest := s.latestSession[msg.UserID]; latest != "" {
+			msg.SessionKey = latest
+		} else if strings.TrimSpace(msg.SessionKey) == "" {
+			msg.SessionKey = "feishu:menu:" + msg.UserID
+		}
+		return msg
+	}
+	if strings.TrimSpace(msg.SessionKey) != "" {
+		s.latestSession[msg.UserID] = msg.SessionKey
+	}
+	return msg
+}
+
+func (s *Service) setActiveTurn(sessionKey string, cancel context.CancelFunc) *activeTurn {
+	if strings.TrimSpace(sessionKey) == "" || cancel == nil {
+		return nil
+	}
+	turn := &activeTurn{cancel: cancel}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activeTurns[sessionKey] = turn
+	return turn
+}
+
+func (s *Service) clearActiveTurn(sessionKey string, turn *activeTurn) {
+	if strings.TrimSpace(sessionKey) == "" || turn == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeTurns[sessionKey] == turn {
+		delete(s.activeTurns, sessionKey)
+	}
+}
+
+func (s *Service) stopTurn(sessionKey string) bool {
+	s.mu.Lock()
+	turn := s.activeTurns[sessionKey]
+	s.mu.Unlock()
+	if turn == nil || turn.cancel == nil {
+		return false
+	}
+	turn.cancel()
+	return true
 }
 
 func (s *Service) recordUsage(ctx context.Context, event UsageEvent) error {
@@ -368,4 +491,15 @@ func fallback(value, def string) string {
 		return def
 	}
 	return value
+}
+
+func displayModeText(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "full", "thinking", "on":
+		return "已收到：显示思考。\n\n当前版本默认只把 Codex 最终回答发回飞书，不展示内部思考；后续如果开启过程展示，会使用这个入口。"
+	case "quiet", "minimal", "mini":
+		return "已切换到极简显示入口。\n\n当前版本飞书回复本来就是简洁结果模式。"
+	default:
+		return "已收到：关闭思考。\n\n当前版本默认只把 Codex 最终回答发回飞书，不展示内部思考。"
+	}
 }

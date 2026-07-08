@@ -14,6 +14,13 @@ type Message struct {
 	ReplyCtx   any
 }
 
+type RuntimeInfo struct {
+	WorkDir         string
+	Mode            string
+	Model           string
+	ReasoningEffort string
+}
+
 type UserProfile struct {
 	ID         string
 	Name       string

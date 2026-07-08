@@ -235,7 +235,7 @@ level = "info"
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
             Result("飞书后台：添加权限并发布", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于统计时自动显示姓名/工号。敏感权限 im:message.group_msg 默认不需要。"),
-            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1。"),
+            Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1；如果底部菜单选推送事件，还要订阅 application.bot.menu_v6。"),
             Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。"),
         ])
 
@@ -323,7 +323,10 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
   <p>订阅方式选择：使用长连接接收事件。</p>
   <table>
     <thead><tr><th>事件名称</th><th>事件标识</th><th>用途</th></tr></thead>
-    <tbody><tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息</td></tr></tbody>
+    <tbody>
+      <tr><td>接收消息</td><td><code>im.message.receive_v1</code></td><td>接收用户发送给机器人的消息</td></tr>
+      <tr><td>机器人自定义菜单</td><td><code>application.bot.menu_v6</code></td><td>接收底部菜单“推送事件”点击</td></tr>
+    </tbody>
   </table>
 </section>
 <section class="panel">
@@ -334,6 +337,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <div><h3>3. 设置</h3><p>模式 <code>/mode</code><br>模型 <code>/model</code><br>帮助 <code>/help</code></p></div>
     <div><h3>4. 显示</h3><p>显示思考 <code>/display full</code><br>关闭思考 <code>/display compact</code><br>极简模式 <code>/display quiet</code></p></div>
   </div>
+  <p>推荐菜单类型选「发送消息」，直接填上面的 <code>/命令</code>。如果选「推送事件」，事件 ID 用：<code>session_new</code>、<code>session_list</code>、<code>session_current</code>、<code>exec_stop</code>、<code>exec_status</code>、<code>exec_workdir</code>、<code>settings_mode</code>、<code>settings_model</code>、<code>settings_help</code>、<code>display_thinking_on</code>、<code>display_thinking_off</code>、<code>display_minimal</code>。</p>
 </section>
 <section class="panel">
   <h2>下一步</h2>

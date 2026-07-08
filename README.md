@@ -120,6 +120,7 @@ sy-feishu-connect start
 | 事件名称 | 事件标识 | 用途 |
 | --- | --- | --- |
 | 接收消息 | `im.message.receive_v1` | 接收用户发送的消息 |
+| 机器人自定义菜单 | `application.bot.menu_v6` | 接收底部菜单“推送事件”点击 |
 
 ## 飞书底部自定义栏推荐
 
@@ -130,7 +131,26 @@ sy-feishu-connect start
 | 设置 | 模式 `/mode`、模型 `/model`、帮助 `/help` |
 | 显示 | 显示思考 `/display full`、关闭思考 `/display compact`、极简模式 `/display quiet` |
 
-当前已实现：`/help`、`/new`、`/status`、`/sessions`、`/stats`、`/whoami`、`/reset`。其余菜单项可以先作为产品入口预留。
+如果菜单类型选「发送消息」，直接填上面的 `/命令`。
+
+如果菜单类型选「推送事件」，事件 ID 填：
+
+| 菜单项 | 推送事件 ID |
+| --- | --- |
+| 新建会话 | `session_new` |
+| 会话列表 | `session_list` |
+| 当前会话 | `session_current` |
+| 停止执行 | `exec_stop` |
+| 当前状态 | `exec_status` |
+| 工作目录 | `exec_workdir` |
+| 模式 | `settings_mode` |
+| 模型 | `settings_model` |
+| 帮助 | `settings_help` |
+| 显示思考 | `display_thinking_on` |
+| 关闭思考 | `display_thinking_off` |
+| 极简模式 | `display_minimal` |
+
+当前已实现：`/help`、`/new`、`/status`、`/sessions`、`/stop`、`/pwd`、`/mode`、`/model`、`/display`、`/stats`、`/whoami`、`/reset`。
 
 ## 使用统计
 

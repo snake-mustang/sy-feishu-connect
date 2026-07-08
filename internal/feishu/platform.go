@@ -13,6 +13,7 @@ import (
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
+	larkapplication "github.com/larksuite/oapi-sdk-go/v3/service/application/v6"
 	contactv3 "github.com/larksuite/oapi-sdk-go/v3/service/contact/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
@@ -53,8 +54,10 @@ type Platform struct {
 }
 
 type ReplyContext struct {
-	MessageID string
-	ChatID    string
+	MessageID     string
+	ChatID        string
+	ReceiveID     string
+	ReceiveIDType string
 }
 
 func New(opts Options) (*Platform, error) {
@@ -108,6 +111,14 @@ func (p *Platform) Start(ctx context.Context, handler func(context.Context, brid
 	p.dispatcher = dispatcher.NewEventDispatcher("", "").
 		OnP2MessageReceiveV1(func(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 			msg, ok := p.convertMessage(event)
+			if !ok {
+				return nil
+			}
+			go handler(ctx, msg)
+			return nil
+		}).
+		OnP2BotMenuV6(func(ctx context.Context, event *larkapplication.P2BotMenuV6) error {
+			msg, ok := p.convertBotMenu(event)
 			if !ok {
 				return nil
 			}
@@ -194,6 +205,37 @@ func (p *Platform) convertMessage(event *larkim.P2MessageReceiveV1) (bridge.Mess
 	}, true
 }
 
+func (p *Platform) convertBotMenu(event *larkapplication.P2BotMenuV6) (bridge.Message, bool) {
+	if event == nil || event.Event == nil {
+		return bridge.Message{}, false
+	}
+	eventKey := strings.TrimSpace(stringValue(event.Event.EventKey))
+	command := menuCommand(eventKey)
+	if command == "" {
+		slog.Info("feishu: unknown bot menu event ignored", "event_key", eventKey)
+		return bridge.Message{}, false
+	}
+	userID := userIDFromApplicationOperator(event.Event.Operator)
+	if !util.Allowed(p.allowUsers, userID) {
+		slog.Info("feishu: unauthorized menu user ignored", "user_id", userID, "event_key", eventKey)
+		return bridge.Message{}, false
+	}
+	if userID == "" {
+		slog.Warn("feishu: bot menu event without user id", "event_key", eventKey)
+		return bridge.Message{}, false
+	}
+	return bridge.Message{
+		SessionKey: "feishu:menu:" + userID,
+		ChatType:   "menu",
+		UserID:     userID,
+		Text:       command,
+		ReplyCtx: ReplyContext{
+			ReceiveID:     userID,
+			ReceiveIDType: larkim.ReceiveIdTypeOpenId,
+		},
+	}, true
+}
+
 func (p *Platform) Send(ctx context.Context, replyCtx any, content string) error {
 	rc, ok := replyCtx.(ReplyContext)
 	if !ok {
@@ -231,7 +273,29 @@ func (p *Platform) sendOne(ctx context.Context, rc ReplyContext, text string) er
 		return nil
 	}
 	if rc.ChatID == "" {
-		return fmt.Errorf("feishu: no message_id or chat_id for reply")
+		if rc.ReceiveID == "" {
+			return fmt.Errorf("feishu: no message_id, chat_id, or receive_id for reply")
+		}
+		receiveIDType := strings.TrimSpace(rc.ReceiveIDType)
+		if receiveIDType == "" {
+			receiveIDType = larkim.ReceiveIdTypeOpenId
+		}
+		req := larkim.NewCreateMessageReqBuilder().
+			ReceiveIdType(receiveIDType).
+			Body(larkim.NewCreateMessageReqBodyBuilder().
+				ReceiveId(rc.ReceiveID).
+				MsgType(larkim.MsgTypeText).
+				Content(string(body)).
+				Build()).
+			Build()
+		resp, err := p.client.Im.Message.Create(ctx, req)
+		if err != nil {
+			return fmt.Errorf("feishu: create message api: %w", err)
+		}
+		if !resp.Success() {
+			return fmt.Errorf("feishu: create message failed code=%d msg=%s", resp.Code, resp.Msg)
+		}
+		return nil
 	}
 	req := larkim.NewCreateMessageReqBuilder().
 		ReceiveIdType(larkim.ReceiveIdTypeChatId).
@@ -505,6 +569,53 @@ func userIDFromEvent(id *larkim.UserId) string {
 		return *id.UnionId
 	}
 	return ""
+}
+
+func userIDFromApplicationOperator(operator *larkapplication.Operator) string {
+	if operator == nil || operator.OperatorId == nil {
+		return ""
+	}
+	if operator.OperatorId.OpenId != nil && *operator.OperatorId.OpenId != "" {
+		return *operator.OperatorId.OpenId
+	}
+	if operator.OperatorId.UserId != nil && *operator.OperatorId.UserId != "" {
+		return *operator.OperatorId.UserId
+	}
+	if operator.OperatorId.UnionId != nil && *operator.OperatorId.UnionId != "" {
+		return *operator.OperatorId.UnionId
+	}
+	return ""
+}
+
+func menuCommand(eventKey string) string {
+	switch strings.ToLower(strings.TrimSpace(eventKey)) {
+	case "session_new", "new", "/new":
+		return "/new"
+	case "session_list", "sessions", "session_sessions", "/sessions":
+		return "/sessions"
+	case "session_current", "status", "session_status", "/status":
+		return "/status"
+	case "exec_stop", "stop", "/stop":
+		return "/stop"
+	case "exec_status":
+		return "/status"
+	case "exec_workdir", "pwd", "workdir", "/pwd":
+		return "/pwd"
+	case "settings_mode", "mode", "/mode":
+		return "/mode"
+	case "settings_model", "model", "/model":
+		return "/model"
+	case "settings_help", "help", "/help":
+		return "/help"
+	case "display_thinking_on", "display_full", "thinking_on":
+		return "/display full"
+	case "display_thinking_off", "display_compact", "thinking_off":
+		return "/display compact"
+	case "display_minimal", "display_quiet", "minimal", "quiet":
+		return "/display quiet"
+	default:
+		return ""
+	}
 }
 
 func stringValue(ptr *string) string {
