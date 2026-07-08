@@ -199,6 +199,30 @@ func TestRuntimeCommands(t *testing.T) {
 	}
 }
 
+func TestChineseMenuTextCommands(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:    &fakeAgent{},
+		Platform: platform,
+		DataDir:  t.TempDir(),
+		Runtime:  RuntimeInfo{WorkDir: "/tmp/project"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"新建会话", "会话列表", "当前会话", "停止执行", "当前状态", "工作目录", "模式", "模型", "帮助", "显示思考", "关闭思考", "极简模式"} {
+		if !svc.handleCommand(context.Background(), Message{SessionKey: "k1", Text: text}) {
+			t.Fatalf("menu text %q not handled", text)
+		}
+	}
+	joined := strings.Join(platform.sent, "\n")
+	for _, want := range []string{"已为当前聊天开启新的 Codex 会话", "最近会话", "没有正在执行", "/tmp/project", "显示思考", "关闭思考", "极简"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("missing %q in %#v", want, platform.sent)
+		}
+	}
+}
+
 func TestStatsAndWhoamiCommands(t *testing.T) {
 	platform := &fakePlatform{profiles: map[string]UserProfile{
 		"ou_user": {Name: "Alice", EmployeeNo: "E001"},
