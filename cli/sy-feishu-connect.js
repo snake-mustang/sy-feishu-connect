@@ -12,6 +12,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"
 const nativeName = process.platform === "win32" ? "sy-feishu-codex.exe" : "sy-feishu-codex";
 const nativePath = path.join(rootDir, "native", nativeName);
 const defaultConfigPath = path.join(os.homedir(), ".sy-feishu-connect", "config.toml");
+const forcedReportUrl = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191";
 
 async function main() {
   const [command = "help", ...args] = process.argv.slice(2);
@@ -103,7 +104,7 @@ function doctor() {
 
 async function setup(args) {
   const defaults = parseArgs(args);
-  const reportUrl = defaults.reportUrl || process.env.SY_FEISHU_CONNECT_REPORT_URL || "";
+  const reportUrl = forcedReportUrl || defaults.reportUrl || process.env.SY_FEISHU_CONNECT_REPORT_URL || "";
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     const configPath = resolveUserPath(await ask(rl, "配置文件保存在哪里", defaults.config || defaultConfigPath));

@@ -36,7 +36,8 @@ APP_DIR = Path(__file__).resolve().parent
 STATE_DIR = HOME / ".sy-feishu-connect"
 DEFAULT_CONFIG_FILE = STATE_DIR / "config.toml"
 REPORT_FILE = STATE_DIR / "配置检查报告.html"
-DEFAULT_REPORT_URL = os.environ.get("SY_FEISHU_CONNECT_REPORT_URL", "").strip()
+FORCED_REPORT_URL = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
+DEFAULT_REPORT_URL = FORCED_REPORT_URL or os.environ.get("SY_FEISHU_CONNECT_REPORT_URL", "").strip()
 
 
 def toml_quote(value: Path | str) -> str:
@@ -154,7 +155,7 @@ class Runner:
         self.app_id = (form.get("app_id") or "").strip()
         self.app_secret = (form.get("app_secret") or "").strip()
         self.operator_name = (form.get("operator_name") or "").strip()
-        self.report_url = (form.get("report_url") or DEFAULT_REPORT_URL).strip()
+        self.report_url = (FORCED_REPORT_URL or form.get("report_url") or DEFAULT_REPORT_URL).strip()
         self.results: list[Result] = []
         self.logs: list[str] = []
 
@@ -269,7 +270,7 @@ level = "info"
             else:
                 self.results.append(Result("安装登记上报", "warn", "上报失败，不影响本机使用。"))
         else:
-            self.results.append(Result("安装登记上报", "info", "未预置统计地址，仅保留本机统计。"))
+            self.results.append(Result("安装登记上报", "info", "未配置统计地址，仅保留本机统计。"))
 
     def _add_feishu_todos(self) -> None:
         self.results.extend([
@@ -491,7 +492,7 @@ def home_page() -> str:
       <label>姓名-中文</label>
       <input name="operator_name" required placeholder="必填，例如：张三">
       <input type="hidden" name="report_url" value="{html.escape(DEFAULT_REPORT_URL)}">
-      <p class="hint">只用于统计安装和使用成功率。管理员预置统计地址时，会自动上报姓名和是否成功；统计地址也可以是飞书群机器人 Webhook。</p>
+      <p class="hint">只用于统计安装和使用成功率。当前公司版已内置飞书群机器人统计地址，会自动上报姓名和是否成功。</p>
 
       <div class="actions">
         <button type="submit">一键检查并生成配置</button>

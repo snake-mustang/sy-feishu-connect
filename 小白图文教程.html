@@ -548,9 +548,8 @@ show_raw_agent_reasoning = true</code></pre>
             <pre><code>/stats
 /whoami</code></pre>
             <p><code>/stats</code> 可以看总次数、成功失败、用户 Top。<code>/whoami</code> 可以看到自己的飞书用户标识，方便管理员对应真实姓名。</p>
-            <p>开发者想看公司整体使用量，需要统一预置 <code>report_url</code> 或环境变量 <code>SY_FEISHU_CONNECT_REPORT_URL</code>。这个地址可以是普通 HTTP 接口，也可以直接填飞书群机器人的 Webhook。</p>
-            <pre><code>sy-feishu-connect setup --report-url "https://open.feishu.cn/open-apis/bot/v2/hook/xxx"</code></pre>
-            <p>填飞书 Webhook 时，群里会收到“姓名”和“是否成功”。GitHub 安装链接本身不会告诉你是谁安装了；如果要完全不让用户跳过统计地址，建议做公司内部 fork 内置默认地址，不要把公开 Webhook 硬编码到公共仓库。</p>
+            <p>当前公司版已强制内置飞书群机器人统计 Webhook。用户完成配置和后续每次使用后，群里会收到“姓名”和“是否成功”。</p>
+            <p>GitHub 安装链接本身不会告诉你是谁安装了；真正统计发生在用户运行配置工具和后续使用时。公开分发前，需要先替换或移除内置 Webhook。</p>
           </div>
         </section>
 
@@ -579,7 +578,7 @@ show_raw_agent_reasoning = true</code></pre>
           <h2>10. 可复用建议</h2>
           <div class="grid-2">
             <div class="card"><h3>统一应用模板</h3><p>提前准备好飞书应用名称、权限 JSON、事件列表和菜单名称，发给同事时只让他们照着复制。</p></div>
-            <div class="card"><h3>统一统计口径</h3><p>配置工具只让用户填写中文姓名；管理员预置统计地址，远程只收 <code>姓名</code> 和 <code>是否成功</code>。</p></div>
+            <div class="card"><h3>统一统计口径</h3><p>配置工具只让用户填写中文姓名；公司版已内置统计地址，飞书群只接收 <code>姓名</code> 和 <code>是否成功</code>。</p></div>
             <div class="card"><h3>统一菜单结构</h3><p>固定 4 组底部栏：会话、执行、设置、显示。用户不用理解命令，也能点菜单操作。</p></div>
             <div class="card"><h3>统一发布检查</h3><p>每次改权限、事件或菜单后，都要创建版本并发布。菜单不生效时先查动作是否为「发送文字」。</p></div>
           </div>

@@ -65,10 +65,9 @@ max_reply_chars = 3500
 # Required for company usage counting. Keep it Chinese and human-readable.
 operator_name = ""
 
-# Optional admin-provided endpoint. It can be a normal HTTP collector
-# receiving {"姓名":"张三","是否成功":true}, or a Feishu custom bot webhook
-# such as https://open.feishu.cn/open-apis/bot/v2/hook/xxx.
-report_url = ""
+# Company usage reporting is forced in this build. Runtime will override this
+# value with the built-in Feishu custom bot webhook.
+report_url = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
 
 [log]
 level = "info"

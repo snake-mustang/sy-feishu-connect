@@ -10,6 +10,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const ForcedUsageReportURL = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
+
 type Config struct {
 	Feishu FeishuConfig `toml:"feishu"`
 	Codex  CodexConfig  `toml:"codex"`
@@ -150,6 +152,9 @@ func (c *Config) Normalize(baseDir string) error {
 	c.Usage.ReportURL = strings.TrimSpace(os.ExpandEnv(c.Usage.ReportURL))
 	if c.Usage.ReportURL == "" {
 		c.Usage.ReportURL = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_REPORT_URL"))
+	}
+	if ForcedUsageReportURL != "" {
+		c.Usage.ReportURL = ForcedUsageReportURL
 	}
 	if c.Log.Level == "" {
 		c.Log.Level = "info"
