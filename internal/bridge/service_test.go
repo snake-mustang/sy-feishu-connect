@@ -43,6 +43,18 @@ func (a *progressAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event
 	return ch, nil
 }
 
+type thinkingAgent struct{}
+
+func (a *thinkingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
+	ch := make(chan Event, 4)
+	ch <- Event{Type: EventStarted, SessionID: "thread-1"}
+	ch <- Event{Type: EventThinking, Text: "先检查配置，再执行命令。", SessionID: "thread-1"}
+	ch <- Event{Type: EventText, Text: "reply", SessionID: "thread-1"}
+	ch <- Event{Type: EventDone, SessionID: "thread-1"}
+	close(ch)
+	return ch, nil
+}
+
 type failingAgent struct{}
 
 func (a *failingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
@@ -228,7 +240,7 @@ func TestDefaultDisplayModeSendsProgress(t *testing.T) {
 	if len(platform.sent) != 2 {
 		t.Fatalf("sent=%#v", platform.sent)
 	}
-	if !strings.Contains(platform.sent[0], "思考中") || !strings.Contains(platform.sent[0], "Bash: echo hello") {
+	if !strings.Contains(platform.sent[0], "执行中") || !strings.Contains(platform.sent[0], "Bash: echo hello") {
 		t.Fatalf("progress not sent: %#v", platform.sent)
 	}
 	if platform.sent[1] != "reply" {
@@ -236,10 +248,35 @@ func TestDefaultDisplayModeSendsProgress(t *testing.T) {
 	}
 }
 
-func TestFinalDisplayModeSuppressesProgress(t *testing.T) {
+func TestDefaultDisplayModeSendsThinking(t *testing.T) {
 	platform := &fakePlatform{}
 	svc, err := New(Options{
-		Agent:         &progressAgent{},
+		Agent:         &thinkingAgent{},
+		Platform:      platform,
+		DataDir:       t.TempDir(),
+		QueueMessages: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", Text: "hello"})
+
+	if len(platform.sent) != 2 {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+	if !strings.Contains(platform.sent[0], "思考中") || !strings.Contains(platform.sent[0], "先检查配置") {
+		t.Fatalf("thinking not sent: %#v", platform.sent)
+	}
+	if platform.sent[1] != "reply" {
+		t.Fatalf("final reply=%#v", platform.sent)
+	}
+}
+
+func TestFinalDisplayModeSuppressesThinking(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:         &thinkingAgent{},
 		Platform:      platform,
 		DataDir:       t.TempDir(),
 		QueueMessages: false,

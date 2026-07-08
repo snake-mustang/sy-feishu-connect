@@ -50,11 +50,12 @@ type AgentRequest struct {
 type EventType string
 
 const (
-	EventStarted EventType = "started"
-	EventText    EventType = "text"
-	EventTool    EventType = "tool"
-	EventError   EventType = "error"
-	EventDone    EventType = "done"
+	EventStarted  EventType = "started"
+	EventText     EventType = "text"
+	EventThinking EventType = "thinking"
+	EventTool     EventType = "tool"
+	EventError    EventType = "error"
+	EventDone     EventType = "done"
 )
 
 type Event struct {

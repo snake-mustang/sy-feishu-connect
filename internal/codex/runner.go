@@ -278,13 +278,13 @@ func (p *parser) handleItemStarted(raw map[string]any) {
 	case "command_execution":
 		cmd := rawString(item, "command")
 		if cmd != "" {
-			p.flushText()
+			p.flushThinking()
 			p.emit(bridge.Event{Type: bridge.EventTool, Text: "Bash: " + truncate(cmd, 300), SessionID: p.sessionID})
 		}
 	case "function_call":
 		name := rawString(item, "name")
 		if name != "" {
-			p.flushText()
+			p.flushThinking()
 			p.emit(bridge.Event{Type: bridge.EventTool, Text: "Tool: " + name, SessionID: p.sessionID})
 		}
 	}
@@ -301,7 +301,9 @@ func (p *parser) handleItemCompleted(raw map[string]any) {
 			p.pendingText = append(p.pendingText, text)
 		}
 	case "reasoning":
-		// Reasoning summaries are intentionally not forwarded by default.
+		if text := extractItemText(item, "summary", "summary_text"); text != "" {
+			p.emit(bridge.Event{Type: bridge.EventThinking, Text: text, SessionID: p.sessionID})
+		}
 	case "command_execution":
 		status := rawString(item, "status")
 		out := strings.TrimSpace(rawString(item, "aggregated_output"))
@@ -316,6 +318,13 @@ func (p *parser) handleItemCompleted(raw map[string]any) {
 			p.emit(bridge.Event{Type: bridge.EventTool, Text: fmt.Sprintf("Tool %s %s", name, status), SessionID: p.sessionID})
 		}
 	}
+}
+
+func (p *parser) flushThinking() {
+	for _, text := range p.pendingText {
+		p.emit(bridge.Event{Type: bridge.EventThinking, Text: text, SessionID: p.sessionID})
+	}
+	p.pendingText = p.pendingText[:0]
 }
 
 func (p *parser) flushText() {

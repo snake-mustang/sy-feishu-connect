@@ -189,6 +189,13 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 			}
 		}
 		switch event.Type {
+		case EventThinking:
+			text := strings.TrimSpace(event.Text)
+			if text != "" && s.getDisplayMode() == displayThinking {
+				thinking := formatThinkingText(text)
+				replyChars += len([]rune(thinking))
+				_ = s.platform.Send(ctx, msg.ReplyCtx, thinking)
+			}
 		case EventTool:
 			text := strings.TrimSpace(event.Text)
 			if text != "" {
@@ -552,7 +559,7 @@ func displayModeText(mode string, changed bool) string {
 	}
 	switch mode {
 	case displayThinking:
-		return prefix + "显示思考。\n\n会把 Codex 的执行过程和工具进度同步到飞书；这是默认模式。"
+		return prefix + "显示思考。\n\n会把 Codex 返回的思考摘要、执行过程和工具进度同步到飞书；这是默认模式。"
 	case displayQuiet:
 		return prefix + "极简模式。\n\n隐藏执行过程，只发送最终回答。"
 	default:
@@ -560,6 +567,10 @@ func displayModeText(mode string, changed bool) string {
 	}
 }
 
-func formatProgressText(text string) string {
+func formatThinkingText(text string) string {
 	return "思考中：\n" + strings.TrimSpace(text)
+}
+
+func formatProgressText(text string) string {
+	return "执行中：\n" + strings.TrimSpace(text)
 }

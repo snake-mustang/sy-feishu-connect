@@ -204,7 +204,7 @@ domain = "feishu"
 | 显示 | 关闭思考 | `display_thinking_off` | `/display final` |
 | 显示 | 极简模式 | `display_minimal` | `/display quiet` |
 
-默认会显示 Codex 的执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
+默认会显示 Codex 返回的思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
 
 如果菜单点了没反应，先检查两件事：事件里有没有订阅 `application.bot.menu_v6`，应用有没有发布新版本。
 

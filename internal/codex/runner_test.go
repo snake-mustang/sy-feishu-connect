@@ -67,6 +67,66 @@ func TestParserExtractsTopLevelAgentMessageText(t *testing.T) {
 	}
 }
 
+func TestParserExtractsReasoningSummary(t *testing.T) {
+	events := make(chan bridge.Event, 8)
+	p := newParser(events, context.Background())
+	mustHandle(t, p, map[string]any{"type": "thread.started", "thread_id": "t1"})
+	mustHandle(t, p, map[string]any{
+		"type": "item.completed",
+		"item": map[string]any{
+			"type":    "reasoning",
+			"summary": []any{map[string]any{"type": "summary_text", "text": "检查配置并规划下一步"}},
+		},
+	})
+	close(events)
+
+	var thinking []string
+	for e := range events {
+		if e.Type == bridge.EventThinking {
+			thinking = append(thinking, e.Text)
+		}
+	}
+	if len(thinking) != 1 || thinking[0] != "检查配置并规划下一步" {
+		t.Fatalf("thinking=%#v", thinking)
+	}
+}
+
+func TestParserFlushesPreToolMessageAsThinking(t *testing.T) {
+	events := make(chan bridge.Event, 8)
+	p := newParser(events, context.Background())
+	mustHandle(t, p, map[string]any{"type": "thread.started", "thread_id": "t1"})
+	mustHandle(t, p, map[string]any{
+		"type": "item.completed",
+		"item": map[string]any{
+			"type":    "agent_message",
+			"content": []any{map[string]any{"type": "output_text", "text": "我先看一下项目结构"}},
+		},
+	})
+	mustHandle(t, p, map[string]any{
+		"type": "item.started",
+		"item": map[string]any{
+			"type":    "command_execution",
+			"command": "ls",
+		},
+	})
+	mustHandle(t, p, map[string]any{"type": "turn.completed"})
+	close(events)
+
+	var got []bridge.Event
+	for e := range events {
+		got = append(got, e)
+	}
+	if len(got) != 4 {
+		t.Fatalf("events=%#v", got)
+	}
+	if got[1].Type != bridge.EventThinking || got[1].Text != "我先看一下项目结构" {
+		t.Fatalf("thinking event=%#v", got[1])
+	}
+	if got[2].Type != bridge.EventTool || got[2].Text != "Bash: ls" {
+		t.Fatalf("tool event=%#v", got[2])
+	}
+}
+
 func TestBuildArgsResumeUsesResumeShape(t *testing.T) {
 	r := &Runner{workDir: "/tmp/work", cliBin: "codex", mode: "suggest"}
 	args := r.buildArgs("abc")
