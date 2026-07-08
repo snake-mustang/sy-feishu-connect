@@ -78,6 +78,25 @@
       background: rgba(255,255,255,.78);
     }
     .hero-card b { display: block; margin-bottom: 4px; }
+    .hero-video {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.82);
+    }
+    .hero-video h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+    .hero-video video {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      border-radius: 8px;
+      background: #0f172a;
+    }
     main {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 286px;
@@ -329,6 +348,10 @@
         <div class="hero-card"><b>2. 检查配置与启动</b><code>sy-feishu-connect doctor</code><br><code>sy-feishu-connect setup</code><br><code>sy-feishu-connect start</code></div>
         <div class="hero-card"><b>3. 飞书后台配置</b>机器人、权限、事件、菜单、发布</div>
       </div>
+      <div class="hero-video">
+        <h2>说明视频</h2>
+        <video controls playsinline preload="metadata" src="https://pingtai-img.shiyue.com/bbs/others/ai/sy-feishu-connect-demo.mp4"></video>
+      </div>
     </header>
 
     <main>
@@ -389,10 +412,10 @@ domain = "feishu"</code></pre>
             <div class="step"><div><b>配置菜单并发布</b>进入「机器人自定义菜单」，配置 4 组底部栏；最后到「版本管理与发布」创建版本并发布。</div></div>
           </div>
           <div class="grid-2">
-            <div class="screenshot"><img src="docs/assets/feishu-event-long-connection.png" alt="飞书事件与回调选择长连接"><div class="caption">事件与回调：选择「使用长连接接收事件」。</div></div>
-            <div class="screenshot"><img src="docs/assets/feishu-add-message-event.png" alt="飞书添加接收消息事件"><div class="caption">添加事件：至少添加 <code>im.message.receive_v1</code>，菜单还需要 <code>application.bot.menu_v6</code>。</div></div>
-            <div class="screenshot"><img src="docs/assets/feishu-menu-main-display.png" alt="飞书机器人自定义菜单主菜单配置"><div class="caption">底部栏：推荐 4 组，会话、执行、设置、显示。</div></div>
-            <div class="screenshot"><img src="docs/assets/feishu-menu-push-event.png" alt="飞书机器人菜单推送事件配置"><div class="caption">子菜单：响应动作选「推送事件」，事件 ID 填固定值。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-1.png" alt="飞书事件与回调选择长连接"><div class="caption">事件与回调：选择「使用长连接接收事件」。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-2.png" alt="飞书添加接收消息事件"><div class="caption">添加事件：至少添加 <code>im.message.receive_v1</code>，菜单还需要 <code>application.bot.menu_v6</code>。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-3.png" alt="飞书机器人自定义菜单主菜单配置"><div class="caption">底部栏：推荐 4 组，会话、执行、设置、显示。</div></div>
+            <div class="screenshot"><img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-4.png" alt="飞书机器人菜单推送事件配置"><div class="caption">子菜单：响应动作选「推送事件」，事件 ID 填固定值。</div></div>
           </div>
         </section>
 
