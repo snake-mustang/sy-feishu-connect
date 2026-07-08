@@ -75,7 +75,7 @@ function doctor() {
   checks.push(checkCommand("node", ["--version"], "Node.js"));
   checks.push(checkCommand("codex", ["--version"], "Codex CLI"));
 
-  if (!fs.existsSync(nativePath)) {
+  if (nativeNeedsBuild()) {
     const built = buildNative({ quiet: true });
     checks.push({
       name: "sy-feishu-connect core",
@@ -156,7 +156,7 @@ function start(args) {
   if (!fs.existsSync(configPath)) {
     throw new Error(`没有找到配置文件：${configPath}\n请先运行：sy-feishu-connect setup`);
   }
-  if (!fs.existsSync(nativePath) && !buildNative({ quiet: false })) {
+  if (nativeNeedsBuild() && !buildNative({ quiet: false })) {
     throw new Error("核心程序不存在且自动编译失败。请安装 Go 后重试。");
   }
   const child = childProcess.spawn(nativePath, ["-config", configPath], { stdio: "inherit" });
@@ -175,6 +175,27 @@ function buildNative({ quiet }) {
     stdio: quiet ? "ignore" : "inherit",
   });
   return result.status === 0 && fs.existsSync(nativePath);
+}
+
+function nativeNeedsBuild() {
+  if (!fs.existsSync(nativePath)) return true;
+  const nativeMtime = fs.statSync(nativePath).mtimeMs;
+  return newestSourceMtime(rootDir) > nativeMtime;
+}
+
+function newestSourceMtime(dir) {
+  let newest = 0;
+  for (const name of fs.readdirSync(dir)) {
+    if (name === "native" || name === "node_modules" || name === ".git") continue;
+    const file = path.join(dir, name);
+    const stat = fs.statSync(file);
+    if (stat.isDirectory()) {
+      newest = Math.max(newest, newestSourceMtime(file));
+    } else if (name.endsWith(".go") || name === "go.mod" || name === "go.sum") {
+      newest = Math.max(newest, stat.mtimeMs);
+    }
+  }
+  return newest;
 }
 
 function checkCommand(command, args, name) {
