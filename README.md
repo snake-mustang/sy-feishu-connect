@@ -72,7 +72,7 @@ sy-feishu-connect start
 2. 在「凭据与基础信息」复制 `App ID` 和 `App Secret`。
 3. 在「权限管理」用批量导入添加消息权限并发布。
 4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1`。
-5. 在「机器人自定义菜单」配置底部自定义栏。
+5. 在「机器人自定义菜单」配置底部自定义栏，菜单动作统一选「发送文字消息」。
 
 更小白的图文步骤见 [使用教程.md](./使用教程.md) 和 [小白图文教程.html](./小白图文教程.html)。
 
@@ -120,35 +120,34 @@ sy-feishu-connect start
 | 事件名称 | 事件标识 | 用途 |
 | --- | --- | --- |
 | 接收消息 | `im.message.receive_v1` | 接收用户发送的消息 |
-| 机器人自定义菜单 | `application.bot.menu_v6` | 接收底部菜单“推送事件”点击 |
+
+底部菜单默认不需要订阅 `application.bot.menu_v6`。飞书后台里的「推送事件」会让飞书服务器向“请求地址”发 HTTP POST，本地长连接收不到这类点击；这个项目的小白路径请统一用「发送文字消息」。
 
 ## 飞书底部自定义栏推荐
 
-| 分组 | 菜单项 |
-| --- | --- |
-| 会话 | 新建会话 `/new`、会话列表 `/sessions`、当前会话 `/status` |
-| 执行 | 停止执行 `/stop`、当前状态 `/status`、工作目录 `/pwd` |
-| 设置 | 模式 `/mode`、模型 `/model`、帮助 `/help` |
-| 显示 | 显示思考 `/display full`、关闭思考 `/display compact`、极简模式 `/display quiet` |
+每个菜单项都这样填：
 
-如果菜单类型选「发送消息」，直接填上面的 `/命令`。
+```text
+响应动作：发送文字消息
+发送内容：下面表格里的 /命令
+```
 
-如果菜单类型选「推送事件」，事件 ID 填：
+| 分组 | 菜单项 | 发送内容 |
+| --- | --- | --- |
+| 会话 | 新建会话 | `/new` |
+| 会话 | 会话列表 | `/sessions` |
+| 会话 | 当前会话 | `/status` |
+| 执行 | 停止执行 | `/stop` |
+| 执行 | 当前状态 | `/status` |
+| 执行 | 工作目录 | `/pwd` |
+| 设置 | 模式 | `/mode` |
+| 设置 | 模型 | `/model` |
+| 设置 | 帮助 | `/help` |
+| 显示 | 显示思考 | `/display full` |
+| 显示 | 关闭思考 | `/display compact` |
+| 显示 | 极简模式 | `/display quiet` |
 
-| 菜单项 | 推送事件 ID |
-| --- | --- |
-| 新建会话 | `session_new` |
-| 会话列表 | `session_list` |
-| 当前会话 | `session_current` |
-| 停止执行 | `exec_stop` |
-| 当前状态 | `exec_status` |
-| 工作目录 | `exec_workdir` |
-| 模式 | `settings_mode` |
-| 模型 | `settings_model` |
-| 帮助 | `settings_help` |
-| 显示思考 | `display_thinking_on` |
-| 关闭思考 | `display_thinking_off` |
-| 极简模式 | `display_minimal` |
+不要选「推送事件」。如果选了它，飞书会把点击事件发到 HTTP 请求地址；你现在跑的是本机长连接，所以菜单点击会没反应。
 
 当前已实现：`/help`、`/new`、`/status`、`/sessions`、`/stop`、`/pwd`、`/mode`、`/model`、`/display`、`/stats`、`/whoami`、`/reset`。
 
