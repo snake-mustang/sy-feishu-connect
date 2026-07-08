@@ -234,7 +234,7 @@ level = "info"
         self.results.extend([
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
-            Result("飞书后台：添加权限并发布", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。可选：contact:user.base:readonly、im:message:reaction。敏感权限 im:message.group_msg 默认不需要。"),
+            Result("飞书后台：添加权限并发布", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于统计时自动显示姓名/工号。敏感权限 im:message.group_msg 默认不需要。"),
             Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1。"),
             Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。"),
         ])
@@ -314,7 +314,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
   <table>
     <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>
     <tbody>
-      <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>后续对应用户信息</td></tr>
+      <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>自动对应姓名/工号</td></tr>
       <tr><td>获取群组中所有消息</td><td><code>im:message.group_msg</code></td><td>敏感权限；仅关闭 @ 要求时需要</td></tr>
       <tr><td>添加消息表情回复</td><td><code>im:message:reaction</code></td><td>处理中/完成表情</td></tr>
     </tbody>

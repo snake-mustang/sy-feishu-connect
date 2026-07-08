@@ -88,7 +88,7 @@ func (s *Service) Receive(ctx context.Context, msg Message) {
 	case worker.ch <- msg:
 	default:
 		_ = s.platform.Send(ctx, msg.ReplyCtx, "当前会话排队消息过多，请稍后再试。")
-		if err := s.recordUsage(UsageEvent{
+		if err := s.recordUsage(ctx, UsageEvent{
 			Time:       time.Now(),
 			SessionKey: msg.SessionKey,
 			MessageID:  msg.MessageID,
@@ -135,7 +135,7 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 	replyChars := 0
 	errText := ""
 	defer func() {
-		if err := s.recordUsage(UsageEvent{
+		if err := s.recordUsage(ctx, UsageEvent{
 			Time:       start,
 			SessionKey: msg.SessionKey,
 			MessageID:  msg.MessageID,
@@ -188,6 +188,9 @@ func (s *Service) runTurn(ctx context.Context, msg Message) {
 		}
 	}
 	final := strings.TrimSpace(strings.Join(finalParts, "\n\n"))
+	if final == "" && errText != "" {
+		return
+	}
 	if final == "" {
 		final = "Codex 已完成，但没有返回文本。"
 	}
@@ -209,7 +212,7 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 	name, rest, _ := strings.Cut(text, " ")
 	name = strings.ToLower(name)
 	record := func(success bool) {
-		if err := s.recordUsage(UsageEvent{
+		if err := s.recordUsage(ctx, UsageEvent{
 			Time:       time.Now(),
 			SessionKey: msg.SessionKey,
 			MessageID:  msg.MessageID,
@@ -283,7 +286,7 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 		return true
 	case "/whoami":
 		_ = rest
-		_ = s.platform.Send(ctx, msg.ReplyCtx, fmt.Sprintf("你的飞书用户标识：%s\n当前聊天：%s\n聊天类型：%s\n\n统计时可以用这个用户标识对应到真实姓名。", fallback(msg.UserID, "(unknown)"), fallback(msg.ChatID, "(unknown)"), fallback(msg.ChatType, "(unknown)")))
+		_ = s.platform.Send(ctx, msg.ReplyCtx, s.whoamiText(ctx, msg))
 		record(true)
 		return true
 	case "/reset":
@@ -302,11 +305,62 @@ func (s *Service) handleCommand(ctx context.Context, msg Message) bool {
 	}
 }
 
-func (s *Service) recordUsage(event UsageEvent) error {
+func (s *Service) recordUsage(ctx context.Context, event UsageEvent) error {
 	if s.usage == nil {
 		return nil
 	}
+	s.enrichUsageUser(ctx, &event)
 	return s.usage.Record(event)
+}
+
+func (s *Service) enrichUsageUser(ctx context.Context, event *UsageEvent) {
+	if event == nil || strings.TrimSpace(event.UserID) == "" {
+		return
+	}
+	profile, err := s.resolveUser(ctx, event.UserID)
+	if err != nil {
+		slog.Debug("bridge: resolve usage user failed", "user_id", event.UserID, "error", err)
+	}
+	if strings.TrimSpace(profile.Name) != "" {
+		event.FeishuUserName = profile.Name
+	}
+	if strings.TrimSpace(profile.EmployeeNo) != "" {
+		event.FeishuEmployeeNo = profile.EmployeeNo
+	}
+}
+
+func (s *Service) resolveUser(ctx context.Context, userID string) (UserProfile, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return UserProfile{}, nil
+	}
+	resolver, ok := s.platform.(UserResolver)
+	if !ok {
+		return UserProfile{ID: userID}, nil
+	}
+	profile, err := resolver.ResolveUser(ctx, userID)
+	if strings.TrimSpace(profile.ID) == "" {
+		profile.ID = userID
+	}
+	return profile, err
+}
+
+func (s *Service) whoamiText(ctx context.Context, msg Message) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("你的飞书用户标识：%s\n", fallback(msg.UserID, "(unknown)")))
+	profile, err := s.resolveUser(ctx, msg.UserID)
+	if strings.TrimSpace(profile.Name) != "" {
+		b.WriteString("姓名：" + profile.Name + "\n")
+	}
+	if strings.TrimSpace(profile.EmployeeNo) != "" {
+		b.WriteString("工号：" + profile.EmployeeNo + "\n")
+	}
+	if err != nil && strings.TrimSpace(profile.Name) == "" {
+		b.WriteString("姓名：暂未自动获取。请确认飞书后台已添加 contact:user.base:readonly 权限，并发布应用新版本。\n")
+	}
+	b.WriteString(fmt.Sprintf("当前聊天：%s\n聊天类型：%s\n", fallback(msg.ChatID, "(unknown)"), fallback(msg.ChatType, "(unknown)")))
+	b.WriteString("\n统计会优先使用姓名/工号；拿不到时会使用上面的用户标识。")
+	return b.String()
 }
 
 func fallback(value, def string) string {

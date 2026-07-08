@@ -447,7 +447,7 @@ domain = "feishu"</code></pre>
           <table>
             <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>
             <tbody>
-              <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>后续把用户标识对应到用户信息。</td></tr>
+              <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>自动把用户标识对应到姓名/工号。</td></tr>
               <tr><td>获取群组中所有消息</td><td><code>im:message.group_msg</code></td><td>敏感权限；仅关闭 @ 要求时需要。</td></tr>
               <tr><td>添加消息表情回复</td><td><code>im:message:reaction</code></td><td>给消息加处理中/完成表情。</td></tr>
             </tbody>
@@ -500,10 +500,12 @@ domain = "feishu"</code></pre>
               <p>自动保存在 <code>data/usage_events.jsonl</code> 和 <code>data/usage_summary.json</code>。</p>
               <pre><code>/stats
 /whoami</code></pre>
+              <p>权限发布后，<code>/stats</code> 会尽量显示姓名/工号，例如 <code>张三/E001 (ou_xxx)</code>。</p>
             </div>
             <div class="card">
               <h3>远程统计</h3>
               <p><code>setup</code> 里填写统计上报地址后，每次使用会 POST 一条 JSON 到你的日志接口。</p>
+              <p>JSON 会包含 <code>user_id</code>、<code>feishu_user_name</code>、<code>feishu_employee_no</code>、成功失败和耗时。</p>
               <p>推荐：n8n webhook、自己的 API、serverless function、日志收集服务。</p>
             </div>
           </div>

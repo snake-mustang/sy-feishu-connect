@@ -145,7 +145,7 @@ domain = "feishu"
 
 | 权限名称 | 权限标识 | 用途 |
 | --- | --- | --- |
-| 获取与更新用户基本信息 | `contact:user.base:readonly` | 可选，用于后续把用户标识对应到用户信息 |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 推荐，用于自动把 `open_id` 对应到姓名/工号 |
 | 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅当你关闭 @ 要求、希望读取群内普通消息时申请 |
 | 添加消息表情回复 | `im:message:reaction` | 可选，用于处理中/完成表情 |
 
@@ -223,7 +223,19 @@ usage_events.jsonl
 usage_summary.json
 ```
 
-飞书里发送 `/stats` 可以快速查看 Top 用户、总消息数、成功失败次数。飞书里发送 `/whoami` 可以看到自己的 `open_id`。
+飞书里发送 `/stats` 可以快速查看 Top 用户、总消息数、成功失败次数。飞书里发送 `/whoami` 可以看到自己的 `open_id`、当前聊天 ID 和聊天类型。
+
+如果飞书后台已申请 `contact:user.base:readonly` 权限并发布应用，服务会自动调用通讯录接口，把发送消息的人解析成飞书姓名/工号。解析成功后，本地统计和远程上报都会带上：
+
+```json
+{
+  "user_id": "ou_xxx",
+  "feishu_user_name": "张三",
+  "feishu_employee_no": "E001"
+}
+```
+
+如果没有显示姓名/工号，先检查权限是否发布、应用通讯录可见范围是否包含该用户。即使拿不到姓名，统计也会保留 `user_id`，后续可以用 `/whoami` 人工对应。
 
 集中统计建议使用 HTTP 日志接收端：
 

@@ -13,6 +13,7 @@ import (
 	lark "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
+	contactv3 "github.com/larksuite/oapi-sdk-go/v3/service/contact/v3"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
 
@@ -47,6 +48,8 @@ type Platform struct {
 	botOpenID      string
 	domain         string
 	dedup          *dedup
+	userCacheMu    sync.Mutex
+	userCache      map[string]userCacheEntry
 }
 
 type ReplyContext struct {
@@ -89,6 +92,7 @@ func New(opts Options) (*Platform, error) {
 		client:         lark.NewClient(opts.AppID, opts.AppSecret, clientOpts...),
 		domain:         domain,
 		dedup:          newDedup(10 * time.Minute),
+		userCache:      map[string]userCacheEntry{},
 	}, nil
 }
 
@@ -302,6 +306,91 @@ func (p *Platform) fetchBotOpenID(ctx context.Context) (string, error) {
 	return result.Bot.OpenID, nil
 }
 
+func (p *Platform) ResolveUser(ctx context.Context, userID string) (bridge.UserProfile, error) {
+	userID = strings.TrimSpace(userID)
+	profile := bridge.UserProfile{ID: userID}
+	if userID == "" {
+		return profile, nil
+	}
+	if cached, ok := p.cachedUserProfile(userID); ok {
+		if cached.errText != "" {
+			return cached.profile, fmt.Errorf("%s", cached.errText)
+		}
+		return cached.profile, nil
+	}
+
+	req := contactv3.NewGetUserReqBuilder().
+		UserId(userID).
+		UserIdType(contactv3.UserIdTypeGetUserOpenId).
+		Build()
+	resp, err := p.client.Contact.User.Get(ctx, req)
+	if err != nil {
+		p.cacheUserProfile(userID, profile, err.Error(), 5*time.Minute)
+		return profile, err
+	}
+	if resp == nil {
+		err := fmt.Errorf("empty response")
+		p.cacheUserProfile(userID, profile, err.Error(), 5*time.Minute)
+		return profile, err
+	}
+	if !resp.Success() {
+		err := fmt.Errorf("code=%d msg=%s", resp.Code, resp.Msg)
+		p.cacheUserProfile(userID, profile, err.Error(), 5*time.Minute)
+		return profile, err
+	}
+	if resp.Data == nil || resp.Data.User == nil {
+		err := fmt.Errorf("empty user data")
+		p.cacheUserProfile(userID, profile, err.Error(), 5*time.Minute)
+		return profile, err
+	}
+
+	user := resp.Data.User
+	profile.ID = firstNonEmpty(stringValue(user.OpenId), userID)
+	profile.Name = strings.TrimSpace(stringValue(user.Name))
+	profile.EmployeeNo = strings.TrimSpace(stringValue(user.EmployeeNo))
+	p.cacheUserProfile(userID, profile, "", 30*time.Minute)
+	return profile, nil
+}
+
+type userCacheEntry struct {
+	profile bridge.UserProfile
+	errText string
+	expires time.Time
+}
+
+func (p *Platform) cachedUserProfile(userID string) (userCacheEntry, bool) {
+	p.userCacheMu.Lock()
+	defer p.userCacheMu.Unlock()
+	entry, ok := p.userCache[userID]
+	if !ok {
+		return userCacheEntry{}, false
+	}
+	if time.Now().After(entry.expires) {
+		delete(p.userCache, userID)
+		return userCacheEntry{}, false
+	}
+	return entry, true
+}
+
+func (p *Platform) cacheUserProfile(userID string, profile bridge.UserProfile, errText string, ttl time.Duration) {
+	if userID == "" {
+		return
+	}
+	if profile.ID == "" {
+		profile.ID = userID
+	}
+	p.userCacheMu.Lock()
+	defer p.userCacheMu.Unlock()
+	if p.userCache == nil {
+		p.userCache = map[string]userCacheEntry{}
+	}
+	p.userCache[userID] = userCacheEntry{
+		profile: profile,
+		errText: strings.TrimSpace(errText),
+		expires: time.Now().Add(ttl),
+	}
+}
+
 func parseText(msgType, raw string) (string, error) {
 	switch msgType {
 	case "text":
@@ -423,6 +512,15 @@ func stringValue(ptr *string) string {
 		return ""
 	}
 	return *ptr
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 type dedup struct {

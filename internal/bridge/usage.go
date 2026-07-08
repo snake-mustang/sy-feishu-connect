@@ -30,21 +30,23 @@ type UsageOptions struct {
 }
 
 type UsageEvent struct {
-	Time         time.Time `json:"time"`
-	OperatorName string    `json:"operator_name,omitempty"`
-	EmployeeID   string    `json:"employee_id,omitempty"`
-	SessionKey   string    `json:"session_key"`
-	MessageID    string    `json:"message_id,omitempty"`
-	ChatID       string    `json:"chat_id,omitempty"`
-	ChatType     string    `json:"chat_type,omitempty"`
-	UserID       string    `json:"user_id,omitempty"`
-	Kind         string    `json:"kind"`
-	Command      string    `json:"command,omitempty"`
-	Success      bool      `json:"success"`
-	DurationMS   int64     `json:"duration_ms"`
-	TextChars    int       `json:"text_chars"`
-	ReplyChars   int       `json:"reply_chars,omitempty"`
-	Error        string    `json:"error,omitempty"`
+	Time             time.Time `json:"time"`
+	OperatorName     string    `json:"operator_name,omitempty"`
+	EmployeeID       string    `json:"employee_id,omitempty"`
+	SessionKey       string    `json:"session_key"`
+	MessageID        string    `json:"message_id,omitempty"`
+	ChatID           string    `json:"chat_id,omitempty"`
+	ChatType         string    `json:"chat_type,omitempty"`
+	UserID           string    `json:"user_id,omitempty"`
+	FeishuUserName   string    `json:"feishu_user_name,omitempty"`
+	FeishuEmployeeNo string    `json:"feishu_employee_no,omitempty"`
+	Kind             string    `json:"kind"`
+	Command          string    `json:"command,omitempty"`
+	Success          bool      `json:"success"`
+	DurationMS       int64     `json:"duration_ms"`
+	TextChars        int       `json:"text_chars"`
+	ReplyChars       int       `json:"reply_chars,omitempty"`
+	Error            string    `json:"error,omitempty"`
 }
 
 type UsageSummary struct {
@@ -57,6 +59,8 @@ type UsageSummary struct {
 
 type UsageCounter struct {
 	ID         string    `json:"id,omitempty"`
+	Name       string    `json:"name,omitempty"`
+	EmployeeNo string    `json:"employee_no,omitempty"`
 	Total      int       `json:"total"`
 	Tasks      int       `json:"tasks"`
 	Commands   int       `json:"commands"`
@@ -175,7 +179,7 @@ func (t *UsageTracker) Report(limit int) string {
 	} else {
 		for i, u := range users {
 			b.WriteString(fmt.Sprintf("%d. %s\n   总计 %d / 任务 %d / 命令 %d / 成功 %d / 失败 %d / 最后 %s\n",
-				i+1, u.ID, u.Total, u.Tasks, u.Commands, u.Success, u.Failed, u.LastSeen.Format("2006-01-02 15:04:05")))
+				i+1, usageCounterLabel(u), u.Total, u.Tasks, u.Commands, u.Success, u.Failed, u.LastSeen.Format("2006-01-02 15:04:05")))
 		}
 	}
 	b.WriteString("\n本地文件:\n")
@@ -186,7 +190,7 @@ func (t *UsageTracker) Report(limit int) string {
 	} else {
 		b.WriteString("远程上报: 未配置\n")
 	}
-	b.WriteString("\n提示：让用户发送 /whoami，可以把 open_id 对应到真实姓名。")
+	b.WriteString("\n提示：如果已开通 contact:user.base:readonly 权限，统计会自动显示姓名/工号；否则会保留 open_id，后续也能人工对应。")
 	return b.String()
 }
 
@@ -260,6 +264,12 @@ func counterFor(m map[string]*UsageCounter, id string) *UsageCounter {
 func applyUsage(c *UsageCounter, event UsageEvent, id string) {
 	if id != "" {
 		c.ID = id
+		if strings.TrimSpace(event.FeishuUserName) != "" {
+			c.Name = strings.TrimSpace(event.FeishuUserName)
+		}
+		if strings.TrimSpace(event.FeishuEmployeeNo) != "" {
+			c.EmployeeNo = strings.TrimSpace(event.FeishuEmployeeNo)
+		}
 	}
 	c.Total++
 	if event.Kind == "command" {
@@ -276,6 +286,25 @@ func applyUsage(c *UsageCounter, event UsageEvent, id string) {
 	c.ReplyChars += event.ReplyChars
 	c.DurationMS += event.DurationMS
 	c.LastSeen = event.Time
+}
+
+func usageCounterLabel(c *UsageCounter) string {
+	if c == nil {
+		return ""
+	}
+	id := strings.TrimSpace(c.ID)
+	name := strings.TrimSpace(c.Name)
+	employeeNo := strings.TrimSpace(c.EmployeeNo)
+	if name == "" {
+		return id
+	}
+	if employeeNo != "" {
+		return fmt.Sprintf("%s/%s (%s)", name, employeeNo, id)
+	}
+	if id != "" {
+		return fmt.Sprintf("%s (%s)", name, id)
+	}
+	return name
 }
 
 func topCounters(m map[string]*UsageCounter, limit int) []*UsageCounter {

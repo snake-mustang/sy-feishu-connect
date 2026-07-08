@@ -37,10 +37,20 @@ func (a *failingAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event,
 	return nil, errors.New("boom")
 }
 
+type eventErrorAgent struct{}
+
+func (a *eventErrorAgent) Run(ctx context.Context, req AgentRequest) (<-chan Event, error) {
+	ch := make(chan Event, 1)
+	ch <- Event{Type: EventError, Err: errors.New("api key login required")}
+	close(ch)
+	return ch, nil
+}
+
 type fakePlatform struct {
-	mu      sync.Mutex
-	handler func(context.Context, Message)
-	sent    []string
+	mu       sync.Mutex
+	handler  func(context.Context, Message)
+	sent     []string
+	profiles map[string]UserProfile
 }
 
 func (p *fakePlatform) Start(ctx context.Context, h func(context.Context, Message)) error {
@@ -57,6 +67,18 @@ func (p *fakePlatform) Send(ctx context.Context, replyCtx any, text string) erro
 
 func (p *fakePlatform) ReactWorking(context.Context, any) error { return nil }
 func (p *fakePlatform) ReactDone(context.Context, any) error    { return nil }
+
+func (p *fakePlatform) ResolveUser(ctx context.Context, userID string) (UserProfile, error) {
+	if p.profiles != nil {
+		if profile, ok := p.profiles[userID]; ok {
+			if profile.ID == "" {
+				profile.ID = userID
+			}
+			return profile, nil
+		}
+	}
+	return UserProfile{ID: userID}, nil
+}
 
 func TestRunTurnPersistsSession(t *testing.T) {
 	agent := &fakeAgent{}
@@ -88,6 +110,26 @@ func TestRunTurnPersistsSession(t *testing.T) {
 	}
 }
 
+func TestRunTurnErrorEventDoesNotSendEmptySuccess(t *testing.T) {
+	platform := &fakePlatform{}
+	svc, err := New(Options{
+		Agent:         &eventErrorAgent{},
+		Platform:      platform,
+		DataDir:       t.TempDir(),
+		QueueMessages: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc.runTurn(context.Background(), Message{SessionKey: "k1", Text: "hello"})
+	if len(platform.sent) != 1 {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+	if !strings.Contains(platform.sent[0], "Codex 执行失败") || strings.Contains(platform.sent[0], "没有返回文本") {
+		t.Fatalf("sent=%#v", platform.sent)
+	}
+}
+
 func TestStatusCommand(t *testing.T) {
 	platform := &fakePlatform{}
 	svc, err := New(Options{
@@ -110,7 +152,9 @@ func TestStatusCommand(t *testing.T) {
 }
 
 func TestStatsAndWhoamiCommands(t *testing.T) {
-	platform := &fakePlatform{}
+	platform := &fakePlatform{profiles: map[string]UserProfile{
+		"ou_user": {Name: "Alice", EmployeeNo: "E001"},
+	}}
 	svc, err := New(Options{
 		Agent:    &fakeAgent{},
 		Platform: platform,
@@ -129,7 +173,7 @@ func TestStatsAndWhoamiCommands(t *testing.T) {
 	platform.mu.Lock()
 	defer platform.mu.Unlock()
 	joined := strings.Join(platform.sent, "\n")
-	if !strings.Contains(joined, "使用统计") || !strings.Contains(joined, "ou_user") || !strings.Contains(joined, "你的飞书用户标识") {
+	if !strings.Contains(joined, "使用统计") || !strings.Contains(joined, "ou_user") || !strings.Contains(joined, "Alice") || !strings.Contains(joined, "E001") || !strings.Contains(joined, "你的飞书用户标识") {
 		t.Fatalf("sent=%#v", platform.sent)
 	}
 }

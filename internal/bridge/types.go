@@ -14,11 +14,21 @@ type Message struct {
 	ReplyCtx   any
 }
 
+type UserProfile struct {
+	ID         string
+	Name       string
+	EmployeeNo string
+}
+
 type Platform interface {
 	Start(context.Context, func(context.Context, Message)) error
 	Send(context.Context, any, string) error
 	ReactWorking(context.Context, any) error
 	ReactDone(context.Context, any) error
+}
+
+type UserResolver interface {
+	ResolveUser(context.Context, string) (UserProfile, error)
 }
 
 type Agent interface {

@@ -111,7 +111,7 @@ sy-feishu-connect start
 
 | 权限名称 | 权限标识 | 用途 |
 | --- | --- | --- |
-| 获取与更新用户基本信息 | `contact:user.base:readonly` | 后续对应用户信息 |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 自动对应姓名/工号 |
 | 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅关闭 @ 要求时需要 |
 | 添加消息表情回复 | `im:message:reaction` | 处理中/完成表情 |
 
@@ -148,7 +148,9 @@ data/usage_summary.json
 /whoami
 ```
 
-如果在 `sy-feishu-connect setup` 里填写了统计上报地址，服务会把每次使用事件 `POST` 到该 HTTP 地址。推荐用 n8n webhook、自己的 API、日志收集服务或 serverless function 接收，再写入表格/数据库。普通用户不需要、也不应该推 GitHub main。
+如果飞书后台已申请 `contact:user.base:readonly` 并发布应用，统计会自动把 `open_id` 对应成飞书姓名/工号；如果暂时拿不到，也会保留 `open_id`，让用户发 `/whoami` 后可以人工对应。
+
+如果在 `sy-feishu-connect setup` 里填写了统计上报地址，服务会把每次使用事件 `POST` 到该 HTTP 地址。事件里会包含 `user_id`、`feishu_user_name`、`feishu_employee_no`、命令、成功失败、耗时等字段。推荐用 n8n webhook、自己的 API、日志收集服务或 serverless function 接收，再写入表格/数据库。普通用户不需要、也不应该推 GitHub main。
 
 ## 安全建议
 
