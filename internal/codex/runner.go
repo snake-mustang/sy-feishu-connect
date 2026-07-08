@@ -235,8 +235,6 @@ type parser struct {
 	codexHome   string
 	sessionFile string
 	usage       *bridge.TokenUsage
-	thinking    bool
-	reasoning   bool
 }
 
 func newParser(events chan<- bridge.Event, ctx context.Context, codexHome string) *parser {
@@ -254,21 +252,16 @@ func (p *parser) handle(line []byte) error {
 		p.sessionID = rawString(raw, "thread_id")
 		p.sessionFile = ""
 		p.usage = nil
-		p.thinking = false
-		p.reasoning = false
 		p.emit(bridge.Event{Type: bridge.EventStarted, SessionID: p.sessionID})
 	case "turn.started":
 		p.pendingText = p.pendingText[:0]
 		p.usage = nil
-		p.thinking = false
-		p.reasoning = false
 	case "item.started":
 		p.handleItemStarted(raw)
 	case "item.completed":
 		p.handleItemCompleted(raw)
 	case "turn.completed":
 		p.refreshUsage(raw)
-		p.emitReasoningFallback()
 		p.flushText()
 		p.done = true
 		p.emit(bridge.Event{Type: bridge.EventDone, SessionID: p.sessionID, Usage: p.usage})
@@ -321,7 +314,6 @@ func (p *parser) handleItemCompleted(raw map[string]any) {
 			p.pendingText = append(p.pendingText, text)
 		}
 	case "reasoning":
-		p.reasoning = true
 		if text := extractItemText(item, "summary", "summary_text"); text != "" {
 			p.emitThinking(text)
 		}
@@ -366,22 +358,7 @@ func (p *parser) emitThinking(text string) {
 	if text == "" {
 		return
 	}
-	p.thinking = true
 	p.emit(bridge.Event{Type: bridge.EventThinking, Text: text, SessionID: p.sessionID})
-}
-
-func (p *parser) emitReasoningFallback() {
-	if p.thinking {
-		return
-	}
-	reasoningTokens := 0
-	if p.usage != nil {
-		reasoningTokens = p.usage.ReasoningOutputTokens
-	}
-	if !p.reasoning && reasoningTokens <= 0 {
-		return
-	}
-	p.emitThinking("Codex 已进行内部推理，但当前 CLI 没有返回可展示的思考摘要；这不是显示模式失效，最终结果会继续发送。")
 }
 
 func (p *parser) refreshUsage(raw map[string]any) {

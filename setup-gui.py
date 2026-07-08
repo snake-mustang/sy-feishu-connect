@@ -324,7 +324,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     "user": []
   }
 }</pre>
-  <p><code>im:message.group_msg</code> 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。<code>im:message:reaction</code> 用于给消息加处理中和完成表情；不需要表情时可以删掉。</p>
+  <p><code>im:message.group_msg</code> 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。<code>im:message:reaction</code> 用于给消息加处理中和完成表情；不需要表情时可以删掉。已按旧教程配置过的用户，需要补加这个权限并重新发布应用。</p>
   <h3>必选权限</h3>
   <table>
     <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>

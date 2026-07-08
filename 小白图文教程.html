@@ -455,7 +455,7 @@ domain = "feishu"</code></pre>
     "user": []
   }
 }</code></pre>
-          <div class="callout warn"><code>im:message.group_msg</code> 是敏感权限。如果你只想让群聊 @ 机器人时触发，可以删掉这一行后再导入。<code>im:message:reaction</code> 用于给消息加处理中和完成表情；不需要表情时可以删掉。</div>
+          <div class="callout warn"><code>im:message.group_msg</code> 是敏感权限。如果你只想让群聊 @ 机器人时触发，可以删掉这一行后再导入。<code>im:message:reaction</code> 用于给消息加处理中和完成表情；不需要表情时可以删掉。已按旧教程配置过的用户，需要补加这个权限并重新发布应用。</div>
           <p>第一次配置先添加必选权限。可选权限后面需要时再加，尤其是敏感权限不要一上来就申请。</p>
           <h3>必选权限</h3>
           <table>
@@ -496,7 +496,7 @@ domain = "feishu"</code></pre>
             <div class="menu-group"><h3>3. 设置</h3><ul><li>模式</li><li>模型</li><li>帮助</li></ul></div>
             <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考（默认）</li><li>关闭思考</li><li>极简模式</li></ul></div>
           </div>
-	          <div class="callout ok">每个菜单项都选「发送文字」，菜单名称照抄上面的中文。飞书通常没有“发送内容”输入框，它会把菜单名称当作文字发给机器人，工具会自动识别成下面的命令。默认会显示 Codex 返回的思考摘要、执行过程和工具进度；最终回答底部会附带模型、推理强度、token/context 占用和工作目录。菜单点了没反应时，先检查菜单名称是否正确，再检查应用是否已发布。</div>
+	          <div class="callout ok">每个菜单项都选「发送文字」，菜单名称照抄上面的中文。飞书通常没有“发送内容”输入框，它会把菜单名称当作文字发给机器人，工具会自动识别成下面的命令。显示思考只展示 Codex CLI 实际返回的可展示摘要和工具进度；最终回答底部会附带模型、推理强度、token/context 占用和工作目录。菜单点了没反应时，先检查菜单名称是否正确，再检查应用是否已发布。</div>
 	          <table>
 	            <thead><tr><th>分组</th><th>菜单项</th><th>实际执行</th></tr></thead>
 	            <tbody>

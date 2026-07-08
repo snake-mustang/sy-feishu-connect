@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"sy-feishu-codex-webhook/internal/bridge"
@@ -171,53 +170,6 @@ func TestParserExtractsUsageFromTurnCompleted(t *testing.T) {
 	}
 	if done.Usage.InputTokens != 1200 || done.Usage.CachedInputTokens != 700 || done.Usage.OutputTokens != 80 || done.Usage.ContextWindow != 4000 {
 		t.Fatalf("usage=%#v", done.Usage)
-	}
-}
-
-func TestParserEmitsFallbackWhenReasoningSummaryHidden(t *testing.T) {
-	events := make(chan bridge.Event, 8)
-	p := newParser(events, context.Background(), "")
-	mustHandle(t, p, map[string]any{"type": "thread.started", "thread_id": "t1"})
-	mustHandle(t, p, map[string]any{
-		"type": "item.completed",
-		"item": map[string]any{
-			"type":              "reasoning",
-			"summary":           []any{},
-			"encrypted_content": "hidden",
-		},
-	})
-	mustHandle(t, p, map[string]any{
-		"type": "item.completed",
-		"item": map[string]any{
-			"type": "agent_message",
-			"text": "OK",
-		},
-	})
-	mustHandle(t, p, map[string]any{
-		"type": "turn.completed",
-		"usage": map[string]any{
-			"input_tokens":            100,
-			"output_tokens":           10,
-			"reasoning_output_tokens": 25,
-		},
-	})
-	close(events)
-
-	var thinking []string
-	var texts []string
-	for e := range events {
-		if e.Type == bridge.EventThinking {
-			thinking = append(thinking, e.Text)
-		}
-		if e.Type == bridge.EventText {
-			texts = append(texts, e.Text)
-		}
-	}
-	if len(thinking) != 1 || !strings.Contains(thinking[0], "没有返回可展示的思考摘要") {
-		t.Fatalf("thinking=%#v", thinking)
-	}
-	if len(texts) != 1 || texts[0] != "OK" {
-		t.Fatalf("texts=%#v", texts)
 	}
 }
 

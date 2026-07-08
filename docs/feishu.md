@@ -132,7 +132,7 @@ domain = "feishu"
 }
 ```
 
-`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。`im:message:reaction` 用于给单聊/群聊消息加处理中和完成表情；不需要表情时可以删掉。
+`im:message.group_msg` 是敏感权限。如果你只让群聊 @ 机器人时触发，可以删掉这一行后再导入。`im:message:reaction` 用于给单聊/群聊消息加处理中和完成表情；不需要表情时可以删掉。已按旧教程配置过的用户，需要补加 `im:message:reaction` 并重新发布应用。
 
 ### 必选权限
 
@@ -207,6 +207,8 @@ domain = "feishu"
 | 显示 | 极简模式 | `/display quiet` |
 
 默认会显示 Codex 返回的思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
+
+注意：这里只显示 Codex CLI 实际返回的可展示摘要和工具进度；如果当前 Codex CLI 没返回摘要，就不会额外编造一段“思考”。
 
 最终回答底部会自动附带模型、推理强度、token/context 占用和工作目录，方便复盘。
 
