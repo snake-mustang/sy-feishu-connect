@@ -463,7 +463,7 @@ def home_page() -> str:
 
       <label>飞书 App ID</label>
       <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
-      <p class="hint">飞书开放平台 -> 应用后台 -> 凭据与基础信息。</p>
+      <p class="hint"><a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">打开飞书开发者后台</a> -> 应用后台 -> 凭据与基础信息。</p>
 
       <label>飞书 App Secret</label>
       <input name="app_secret" type="password" placeholder="只会写入本机 config.toml">
