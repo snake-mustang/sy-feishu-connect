@@ -262,6 +262,13 @@
       background: #f8fafc;
     }
     .screenshot img { display: block; width: 100%; height: auto; }
+    .effect-shots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .effect-shots .screenshot { margin: 0; }
     .caption {
       margin-top: 8px;
       color: var(--muted);
@@ -548,13 +555,14 @@ domain = "feishu"</code></pre>
         </section>
 
         <section id="effect">
-          <h2>9. 使用效果和截图</h2>
-          <div class="screenshot">
-            <img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-5.jpg" alt="sy-feishu-connect 使用效果截图">
-          </div>
-          <h3>用户真实截图</h3>
-          <div class="screenshot">
-            <img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-6.jpg" alt="用户真实使用截图">
+          <h2>9. 用户真实截图</h2>
+          <div class="effect-shots">
+            <div class="screenshot">
+              <img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-5.jpg" alt="用户真实截图 1">
+            </div>
+            <div class="screenshot">
+              <img src="https://pingtai-img.shiyue.com/bbs/others/ai/fs-6.jpg" alt="用户真实截图 2">
+            </div>
           </div>
         </section>
 
@@ -636,7 +644,7 @@ domain = "feishu"</code></pre>
         <a href="#menu">6. 底部自定义栏</a>
         <a href="#stats">7. 使用统计</a>
         <a href="#run">8. 启动测试</a>
-        <a href="#effect">9. 效果截图</a>
+        <a href="#effect">9. 用户真实截图</a>
         <a href="#reuse">10. 可复用建议</a>
         <a href="#troubleshoot">11. 排查图</a>
         <a href="#thanks">鸣谢</a>
