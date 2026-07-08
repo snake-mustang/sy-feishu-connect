@@ -6,7 +6,7 @@ sy-feishu-connect browser setup wizard.
 This is an optional GUI helper for users who dislike terminal prompts. The
 primary installation path is still:
 
-    npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
+    npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz
     sy-feishu-connect doctor
     sy-feishu-connect setup
 """
@@ -202,7 +202,7 @@ class Runner:
 
         cli = local_cli_command()
         if not cli:
-            self.results.append(Result("检查 sy-feishu-connect", "fail", "没有找到 sy-feishu-connect 命令。请先运行：npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz"))
+            self.results.append(Result("检查 sy-feishu-connect", "fail", "没有找到 sy-feishu-connect 命令。请先运行：npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz"))
             raise RuntimeError("sy-feishu-connect 未安装。")
 
         code, out = self._run([*cli, "doctor"], timeout=180)
@@ -445,7 +445,7 @@ def home_page() -> str:
 <section class="hero">
   <div class="eyebrow">sy-feishu-connect</div>
   <h1>快速配置向导</h1>
-  <p>这个页面只做配置和检查。安装请先运行 <code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</code>，然后用这里生成配置。</p>
+  <p>这个页面只做配置和检查。安装请先运行 <code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz</code>，然后用这里生成配置。</p>
   <div class="badges"><span>1 检查命令</span><span>2 选择项目目录</span><span>3 填飞书密钥</span><span>4 填统计信息</span><span>5 生成报告</span></div>
 </section>
 <div class="grid">

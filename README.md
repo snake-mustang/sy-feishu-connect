@@ -13,7 +13,7 @@
 ### 1. 安装
 
 ```bash
-npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
+npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz
 ```
 
 以后如果发布到 npm 官方 registry，也可以改用更短的：
@@ -205,6 +205,8 @@ sy-feishu-connect 使用上报
 姓名：张三
 是否成功：是
 ```
+
+该统计链路已验证可以成功接收。用户本机旧版本需要先重新安装，再运行 `sy-feishu-connect doctor` 触发核心程序更新。
 
 飞书群机器人如果配置安全策略，建议先用关键词校验，并把关键词设为 `sy-feishu-connect`；这版暂不处理签名校验。
 
