@@ -362,6 +362,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
     <div><h3>4. 显示</h3><p>显示思考（默认）<br>关闭思考<br>极简模式</p></div>
   </div>
   <p><strong>所有菜单项都选「发送文字」。</strong>飞书会把菜单名称当作文字发给机器人，所以菜单名称照抄上面的中文即可；工具会自动识别成 <code>/new</code>、<code>/status</code>、<code>/display thinking</code> 等命令。</p>
+  <p><strong>显示思考说明：</strong>这里只展示 Codex CLI 实际返回的可展示摘要和工具进度；如果当前 CLI 或模型网关只返回加密推理内容，没有返回 summary，就不会编造一段“思考”。想尝试打开摘要，可以在 <code>~/.codex/config.toml</code> 加入 <code>model_reasoning_summary = "detailed"</code> 后重启服务。</p>
 </section>
 <section class="panel">
   <h2>下一步</h2>

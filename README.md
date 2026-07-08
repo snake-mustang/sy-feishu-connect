@@ -152,11 +152,22 @@ sy-feishu-connect start
 | 显示 | 关闭思考 | `/display final` |
 | 显示 | 极简模式 | `/display quiet` |
 
-默认会显示 Codex 返回的思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
+默认会显示 Codex 返回的可展示思考摘要、执行过程和工具进度；只想看最终结果时，再点「关闭思考」或发送 `/display final`。
 
-注意：这里只显示 Codex CLI 实际返回的可展示摘要和工具进度；如果当前 Codex CLI 没返回摘要，就不会额外编造一段“思考”。
+注意：这里不是隐藏思维链。工具只转发 Codex CLI 实际返回的 `reasoning.summary` 和工具进度；如果当前 CLI 或模型网关只返回 `encrypted_content`，并且 `summary` 是空数组，就不会额外编造一段“思考”。
 
 最终回答底部会自动附带模型、推理强度、token/context 占用和工作目录，方便复盘这次是谁、在哪个目录、用什么配置跑的。
+
+如果你想尽量打开 Codex 的可展示思考摘要，可以在 `~/.codex/config.toml` 里尝试加入：
+
+```toml
+model_reasoning_summary = "detailed"
+model_supports_reasoning_summaries = true
+hide_agent_reasoning = false
+show_raw_agent_reasoning = true
+```
+
+改完后重启 `sy-feishu-connect start`。如果仍然没有思考摘要，多半是当前 Codex CLI / 模型 / 自定义网关没有把 summary 透出；这时只能显示工具过程、最终结果和底部模型/token 信息。
 
 如果菜单点了没反应，优先检查菜单动作是不是「发送文字」、菜单名称是不是上面的中文，以及应用有没有重新发布。
 
@@ -169,6 +180,13 @@ sy-feishu-connect start
 ```text
 data/usage_events.jsonl
 data/usage_summary.json
+```
+
+如果使用默认配置工具，实际路径通常是：
+
+```text
+~/.sy-feishu-connect/data/usage_events.jsonl
+~/.sy-feishu-connect/data/usage_summary.json
 ```
 
 飞书里可用：
@@ -187,6 +205,8 @@ data/usage_summary.json
 ```
 
 普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
+
+开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台。要统计公司整体使用量，需要统一配置 `report_url` 或环境变量 `SY_FEISHU_CONNECT_REPORT_URL`，由你的服务端接收上面的 JSON。
 
 ## 安全建议
 

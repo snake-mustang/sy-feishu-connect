@@ -497,6 +497,11 @@ domain = "feishu"</code></pre>
             <div class="menu-group"><h3>4. 显示</h3><ul><li>显示思考（默认）</li><li>关闭思考</li><li>极简模式</li></ul></div>
           </div>
 	          <div class="callout ok">每个菜单项都选「发送文字」，菜单名称照抄上面的中文。飞书通常没有“发送内容”输入框，它会把菜单名称当作文字发给机器人，工具会自动识别成下面的命令。显示思考只展示 Codex CLI 实际返回的可展示摘要和工具进度；最终回答底部会附带模型、推理强度、token/context 占用和工作目录。菜单点了没反应时，先检查菜单名称是否正确，再检查应用是否已发布。</div>
+            <div class="callout warn">显示思考不是隐藏思维链。如果 Codex CLI 或模型网关只返回加密推理内容，没有返回可展示摘要，页面就不会编造一段“思考”。想尝试打开摘要，可以在 <code>~/.codex/config.toml</code> 里加入下面配置，改完后重启服务。</div>
+            <pre><code>model_reasoning_summary = "detailed"
+model_supports_reasoning_summaries = true
+hide_agent_reasoning = false
+show_raw_agent_reasoning = true</code></pre>
 	          <table>
 	            <thead><tr><th>分组</th><th>菜单项</th><th>实际执行</th></tr></thead>
 	            <tbody>
@@ -539,9 +544,11 @@ domain = "feishu"</code></pre>
           <div class="card">
             <h3>本机统计</h3>
             <p>自动保存在 <code>data/usage_events.jsonl</code> 和 <code>data/usage_summary.json</code>。</p>
+            <p>如果使用默认配置工具，常见路径是 <code>~/.sy-feishu-connect/data/usage_summary.json</code>。</p>
             <pre><code>/stats
 /whoami</code></pre>
             <p><code>/stats</code> 可以看总次数、成功失败、用户 Top。<code>/whoami</code> 可以看到自己的飞书用户标识，方便管理员对应真实姓名。</p>
+            <p>开发者想看公司整体使用量，需要统一预置 <code>report_url</code> 或环境变量 <code>SY_FEISHU_CONNECT_REPORT_URL</code>。GitHub 安装链接本身不会告诉你是谁安装了。</p>
           </div>
         </section>
 
