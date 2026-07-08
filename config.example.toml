@@ -1,4 +1,4 @@
-# sy-feishu-codex-webhook
+# sy-feishu-connect
 # Copy to config.toml and fill in credentials.
 # String fields support ${ENV_NAME} expansion.
 
@@ -23,8 +23,9 @@ working_emoji = "OnIt"
 done_emoji = "DONE"
 
 [codex]
-# The project/repository directory Codex should operate in.
-work_dir = "."
+# The directory Codex should operate in. Use your home directory if you do not
+# need to bind Codex to a specific project.
+work_dir = "${HOME}"
 
 # Optional CLI override. Usually "codex".
 cli_path = "codex"
@@ -55,12 +56,11 @@ queue_messages = true
 max_reply_chars = 3500
 
 [usage]
-# Optional: identify this installed bot/runtime in local and remote usage logs.
+# Required for company usage counting. Keep it Chinese and human-readable.
 operator_name = ""
-employee_id = ""
 
-# Optional: HTTP endpoint that accepts POSTed JSON usage events.
-# Examples: your own API, n8n webhook, log collector, or serverless function.
+# Optional admin-provided HTTP endpoint. Remote payload is intentionally tiny:
+# {"姓名":"张三","是否成功":true}
 report_url = ""
 
 [log]

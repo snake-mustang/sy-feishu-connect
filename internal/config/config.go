@@ -148,6 +148,9 @@ func (c *Config) Normalize(baseDir string) error {
 	c.Usage.OperatorName = strings.TrimSpace(c.Usage.OperatorName)
 	c.Usage.EmployeeID = strings.TrimSpace(c.Usage.EmployeeID)
 	c.Usage.ReportURL = strings.TrimSpace(os.ExpandEnv(c.Usage.ReportURL))
+	if c.Usage.ReportURL == "" {
+		c.Usage.ReportURL = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_REPORT_URL"))
+	}
 	if c.Log.Level == "" {
 		c.Log.Level = "info"
 	}

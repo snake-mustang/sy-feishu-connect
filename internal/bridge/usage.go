@@ -49,6 +49,11 @@ type UsageEvent struct {
 	Error            string    `json:"error,omitempty"`
 }
 
+type RemoteUsageEvent struct {
+	Name    string `json:"姓名"`
+	Success bool   `json:"是否成功"`
+}
+
 type UsageSummary struct {
 	UpdatedAt time.Time                `json:"updated_at"`
 	Total     UsageCounter             `json:"total"`
@@ -186,11 +191,11 @@ func (t *UsageTracker) Report(limit int) string {
 	b.WriteString("原始明细: " + t.eventsPath + "\n")
 	b.WriteString("汇总结果: " + t.summaryPath + "\n")
 	if t.opts.ReportURL != "" {
-		b.WriteString("远程上报: 已启用\n")
+		b.WriteString("远程上报: 已启用（仅上报姓名和是否成功）\n")
 	} else {
 		b.WriteString("远程上报: 未配置\n")
 	}
-	b.WriteString("\n提示：如果已开通 contact:user.base:readonly 权限，统计会自动显示姓名/工号；否则会保留 open_id，后续也能人工对应。")
+	b.WriteString("\n提示：如果已开通 contact:user.base:readonly 权限，统计会尽量显示飞书姓名；否则会保留 open_id，后续也能人工对应真实姓名。")
 	return b.String()
 }
 
@@ -198,7 +203,10 @@ func (t *UsageTracker) reportAsync(event UsageEvent) {
 	if t.opts.ReportURL == "" {
 		return
 	}
-	payload, err := json.Marshal(event)
+	payload, err := json.Marshal(RemoteUsageEvent{
+		Name:    remoteUsageName(t.opts, event),
+		Success: event.Success,
+	})
 	if err != nil {
 		return
 	}
@@ -219,6 +227,20 @@ func (t *UsageTracker) reportAsync(event UsageEvent) {
 			slog.Warn("usage: report rejected", "status", resp.Status)
 		}
 	}()
+}
+
+func remoteUsageName(opts UsageOptions, event UsageEvent) string {
+	for _, value := range []string{
+		opts.OperatorName,
+		event.OperatorName,
+		event.FeishuUserName,
+		event.UserID,
+	} {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func sanitizeUsageOptions(opts UsageOptions) UsageOptions {

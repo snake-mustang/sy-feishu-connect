@@ -36,13 +36,14 @@ sy-feishu-connect doctor
 sy-feishu-connect setup
 ```
 
+如果你是从 GitHub 下载的完整文件夹，也可以双击根目录里的 `双击打开配置工具.command`（Mac）或 `双击打开配置工具.bat`（Windows）生成配置。
+
 它会让你填写：
 
-- Codex 要操作的项目目录
+- Codex 工作目录，可以不填项目路径，不操作项目就用默认值
 - 飞书 App ID
 - 飞书 App Secret
-- 姓名/工号，用于统计谁在用
-- 统计上报地址，可空
+- 姓名-中文，用于统计安装和使用成功率
 
 默认会生成：
 
@@ -70,9 +71,10 @@ sy-feishu-connect start
 
 1. 启用机器人能力。
 2. 在「凭据与基础信息」复制 `App ID` 和 `App Secret`。
-3. 在「权限管理」用批量导入添加消息权限并发布。
+3. 在「权限管理」用批量导入添加消息权限。
 4. 在「事件与回调」选择长连接，订阅 `im.message.receive_v1` 和 `application.bot.menu_v6`。
 5. 在「机器人自定义菜单」配置底部自定义栏，菜单动作统一选「推送事件」。
+6. 到「版本管理与发布」创建版本并发布。
 
 更小白的图文步骤见 [使用教程.md](./使用教程.md) 和 [小白图文教程.html](./小白图文教程.html)。
 
@@ -111,7 +113,7 @@ sy-feishu-connect start
 
 | 权限名称 | 权限标识 | 用途 |
 | --- | --- | --- |
-| 获取与更新用户基本信息 | `contact:user.base:readonly` | 自动对应姓名/工号 |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 本机统计时尽量显示飞书姓名 |
 | 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅关闭 @ 要求时需要 |
 | 添加消息表情回复 | `im:message:reaction` | 处理中/完成表情 |
 
@@ -168,9 +170,15 @@ data/usage_summary.json
 /whoami
 ```
 
-如果飞书后台已申请 `contact:user.base:readonly` 并发布应用，统计会自动把 `open_id` 对应成飞书姓名/工号；如果暂时拿不到，也会保留 `open_id`，让用户发 `/whoami` 后可以人工对应。
+如果飞书后台已申请 `contact:user.base:readonly` 并发布应用，统计会尽量把 `open_id` 对应成飞书姓名；如果暂时拿不到，也会保留 `open_id`，让用户发 `/whoami` 后可以人工对应真实姓名。
 
-如果在 `sy-feishu-connect setup` 里填写了统计上报地址，服务会把每次使用事件 `POST` 到该 HTTP 地址。事件里会包含 `user_id`、`feishu_user_name`、`feishu_employee_no`、命令、成功失败、耗时等字段。推荐用 n8n webhook、自己的 API、日志收集服务或 serverless function 接收，再写入表格/数据库。普通用户不需要、也不应该推 GitHub main。
+如果管理员预置了 `SY_FEISHU_CONNECT_REPORT_URL`，首次配置成功和后续每次使用都会向该地址 `POST` 一条极简 JSON，只包含：
+
+```json
+{"姓名":"张三","是否成功":true}
+```
+
+普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
 
 ## 安全建议
 

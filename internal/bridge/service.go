@@ -482,7 +482,7 @@ func (s *Service) whoamiText(ctx context.Context, msg Message) string {
 		b.WriteString("姓名：暂未自动获取。请确认飞书后台已添加 contact:user.base:readonly 权限，并发布应用新版本。\n")
 	}
 	b.WriteString(fmt.Sprintf("当前聊天：%s\n聊天类型：%s\n", fallback(msg.ChatID, "(unknown)"), fallback(msg.ChatType, "(unknown)")))
-	b.WriteString("\n统计会优先使用姓名/工号；拿不到时会使用上面的用户标识。")
+	b.WriteString("\n统计会优先使用姓名；拿不到时会使用上面的用户标识，后续也能人工对应真实姓名。")
 	return b.String()
 }
 

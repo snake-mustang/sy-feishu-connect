@@ -227,7 +227,7 @@ func TestStatsAndWhoamiCommands(t *testing.T) {
 }
 
 func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
-	received := make(chan UsageEvent, 1)
+	received := make(chan map[string]any, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		if r.Method != http.MethodPost {
@@ -236,7 +236,7 @@ func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
 		if got := r.Header.Get("Content-Type"); got != "application/json" {
 			t.Errorf("content-type=%s", got)
 		}
-		var event UsageEvent
+		var event map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 			t.Errorf("decode event: %v", err)
 		}
@@ -258,7 +258,7 @@ func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
 
 	select {
 	case event := <-received:
-		if event.OperatorName != "Alice" || event.EmployeeID != "E001" || event.UserID != "ou_user" {
+		if len(event) != 2 || event["姓名"] != "Alice" || event["是否成功"] != true {
 			t.Fatalf("event=%#v", event)
 		}
 	case <-time.After(2 * time.Second):

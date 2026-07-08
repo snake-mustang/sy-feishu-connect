@@ -24,6 +24,7 @@ import sys
 import threading
 import traceback
 import urllib.parse
+import urllib.request
 import webbrowser
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,10 +36,27 @@ APP_DIR = Path(__file__).resolve().parent
 STATE_DIR = HOME / ".sy-feishu-connect"
 DEFAULT_CONFIG_FILE = STATE_DIR / "config.toml"
 REPORT_FILE = STATE_DIR / "配置检查报告.html"
+DEFAULT_REPORT_URL = os.environ.get("SY_FEISHU_CONNECT_REPORT_URL", "").strip()
 
 
 def toml_quote(value: Path | str) -> str:
     return json.dumps(str(value), ensure_ascii=False)
+
+
+def has_chinese(value: str) -> bool:
+    return any("\u4e00" <= ch <= "\u9fff" for ch in value.strip())
+
+
+def post_minimal_usage(report_url: str, name: str, success: bool) -> bool:
+    if not report_url:
+        return False
+    payload = json.dumps({"姓名": name, "是否成功": bool(success)}, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(report_url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return 200 <= resp.status < 300
+    except Exception:
+        return False
 
 
 def choose_directory(current: str) -> str:
@@ -113,12 +131,11 @@ class Result:
 class Runner:
     def __init__(self, form: dict[str, str]) -> None:
         self.config_file = Path(form.get("config_file") or str(DEFAULT_CONFIG_FILE)).expanduser()
-        self.work_dir = Path(form.get("work_dir") or "").expanduser()
+        self.work_dir = Path(form.get("work_dir") or str(HOME)).expanduser()
         self.app_id = (form.get("app_id") or "").strip()
         self.app_secret = (form.get("app_secret") or "").strip()
         self.operator_name = (form.get("operator_name") or "").strip()
-        self.employee_id = (form.get("employee_id") or "").strip()
-        self.report_url = (form.get("report_url") or "").strip()
+        self.report_url = (form.get("report_url") or DEFAULT_REPORT_URL).strip()
         self.results: list[Result] = []
         self.logs: list[str] = []
 
@@ -181,6 +198,9 @@ class Runner:
         if self.app_id == "" or self.app_secret == "":
             self.results.append(Result("检查飞书凭证", "fail", "App ID 和 App Secret 都不能为空。"))
             raise RuntimeError("飞书凭证未填写。")
+        if not has_chinese(self.operator_name):
+            self.results.append(Result("检查姓名-中文", "fail", "请填写中文姓名，用于统计安装和使用。"))
+            raise RuntimeError("姓名-中文必填。")
 
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         if self.config_file.exists():
@@ -217,7 +237,6 @@ max_reply_chars = 3500
 
 [usage]
 operator_name = {toml_quote(self.operator_name)}
-employee_id = {toml_quote(self.employee_id)}
 report_url = {toml_quote(self.report_url)}
 
 [log]
@@ -226,17 +245,21 @@ level = "info"
         self.config_file.write_text(content, encoding="utf-8")
         self.results.append(Result("生成配置文件", "ok", f"配置文件：{self.config_file}\nCodex 项目目录：{self.work_dir}"))
         if self.report_url:
-            self.results.append(Result("统计上报", "ok", f"已配置远程上报地址：{self.report_url}"))
+            if post_minimal_usage(self.report_url, self.operator_name, True):
+                self.results.append(Result("安装登记上报", "ok", "已上报姓名和安装成功状态。"))
+            else:
+                self.results.append(Result("安装登记上报", "warn", "上报失败，不影响本机使用。"))
         else:
-            self.results.append(Result("统计上报", "warn", "未填写远程上报地址，使用记录只保存在本机。"))
+            self.results.append(Result("安装登记上报", "info", "未预置统计地址，仅保留本机统计。"))
 
     def _add_feishu_todos(self) -> None:
         self.results.extend([
             Result("飞书后台：创建企业自建应用", "warn", "打开 https://open.feishu.cn/app 创建企业自建应用。"),
             Result("飞书后台：启用机器人", "warn", "路径：应用能力 -> 机器人。"),
-            Result("飞书后台：添加权限并发布", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于统计时自动显示姓名/工号。敏感权限 im:message.group_msg 默认不需要。"),
+            Result("飞书后台：添加权限", "warn", "必选：im:message.p2p_msg:readonly、im:message.group_at_msg:readonly、im:message:send_as_bot。推荐：contact:user.base:readonly，用于本机统计时自动显示飞书姓名。敏感权限 im:message.group_msg 默认不需要。"),
             Result("飞书后台：事件长连接", "warn", "事件与回调选择长连接，订阅 im.message.receive_v1 和 application.bot.menu_v6。"),
             Result("飞书后台：底部自定义栏", "warn", "推荐 4 组：会话、执行、设置、显示。每个按钮的响应动作都选「推送事件」，事件 ID 填报告里的固定值。"),
+            Result("飞书后台：发布应用", "warn", "每次改权限、事件或菜单后，都要到「版本管理与发布」创建版本并发布。"),
         ])
 
     def _write_report(self) -> None:
@@ -314,7 +337,7 @@ def render_report(results: list[Result], logs: list[str], config_file: Path) -> 
   <table>
     <thead><tr><th>权限名称</th><th>权限标识</th><th>用途</th></tr></thead>
     <tbody>
-      <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>自动对应姓名/工号</td></tr>
+      <tr><td>获取与更新用户基本信息</td><td><code>contact:user.base:readonly</code></td><td>本机统计时尽量显示飞书姓名</td></tr>
       <tr><td>获取群组中所有消息</td><td><code>im:message.group_msg</code></td><td>敏感权限；仅关闭 @ 要求时需要</td></tr>
       <tr><td>添加消息表情回复</td><td><code>im:message:reaction</code></td><td>处理中/完成表情</td></tr>
     </tbody>
@@ -356,7 +379,7 @@ def page_shell(body: str) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sy-feishu-connect 小白配置向导</title>
+<title>sy-feishu-connect 快速配置向导</title>
 <style>
 *{{box-sizing:border-box}} body{{margin:0;background:#eef3f8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.65}}
 .wrap{{max-width:1180px;margin:0 auto;padding:28px}}
@@ -400,7 +423,7 @@ def home_page() -> str:
     return page_shell(f"""
 <section class="hero">
   <div class="eyebrow">sy-feishu-connect</div>
-  <h1>小白配置向导</h1>
+  <h1>快速配置向导</h1>
   <p>这个页面只做配置和检查。安装请先运行 <code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</code>，然后用这里生成配置。</p>
   <div class="badges"><span>1 检查命令</span><span>2 选择项目目录</span><span>3 填飞书密钥</span><span>4 填统计信息</span><span>5 生成报告</span></div>
 </section>
@@ -417,9 +440,10 @@ def home_page() -> str:
       <h2>飞书后台手动做</h2>
       <div>创建企业自建应用</div>
       <div>启用机器人能力</div>
-      <div>添加消息权限并发布</div>
+      <div>添加消息权限</div>
       <div>事件选择长连接</div>
       <div>配置底部自定义栏 4 组</div>
+      <div>创建版本并发布</div>
     </section>
   </aside>
   <section class="panel">
@@ -430,12 +454,12 @@ def home_page() -> str:
       <input name="config_file" value="{html.escape(str(DEFAULT_CONFIG_FILE))}">
       <p class="hint">不懂就保持默认。</p>
 
-      <label>Codex 要操作的项目目录</label>
+      <label>Codex 工作目录（可空）</label>
       <div class="path-row">
-        <input id="work_dir" name="work_dir" value="" placeholder="请选择你的业务项目，比如 /Users/you/code/my-app">
+        <input id="work_dir" name="work_dir" value="" placeholder="可空；不填默认使用你的用户目录">
         <button class="pick" type="button" onclick="chooseDir('work_dir')" title="选择 Codex 要操作的项目目录">...</button>
       </div>
-      <p class="hint">飞书里的任务会在这个目录里执行。这里填你的真实代码项目路径。</p>
+      <p class="hint">如果你希望 Codex 操作某个代码项目，就选择项目目录；如果只是临时问答，可以不填。</p>
 
       <label>飞书 App ID</label>
       <input name="app_id" placeholder="cli_xxxxxxxxxxxxx">
@@ -444,15 +468,10 @@ def home_page() -> str:
       <label>飞书 App Secret</label>
       <input name="app_secret" type="password" placeholder="只会写入本机 config.toml">
 
-      <label>你的姓名</label>
-      <input name="operator_name" placeholder="用于统计是谁安装/使用">
-
-      <label>你的工号</label>
-      <input name="employee_id" placeholder="可空">
-
-      <label>统计上报地址</label>
-      <input name="report_url" placeholder="可空，例如 n8n webhook 或公司日志接口">
-      <p class="hint">不填也能用，统计只保存在本机。普通用户不需要推 GitHub。</p>
+      <label>姓名-中文</label>
+      <input name="operator_name" required placeholder="必填，例如：张三">
+      <input type="hidden" name="report_url" value="{html.escape(DEFAULT_REPORT_URL)}">
+      <p class="hint">只用于统计安装和使用成功率。管理员预置统计地址时，会自动上报姓名和是否成功。</p>
 
       <div class="actions">
         <button type="submit">一键检查并生成配置</button>

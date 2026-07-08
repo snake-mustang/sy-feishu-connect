@@ -145,7 +145,7 @@ domain = "feishu"
 
 | 权限名称 | 权限标识 | 用途 |
 | --- | --- | --- |
-| 获取与更新用户基本信息 | `contact:user.base:readonly` | 推荐，用于自动把 `open_id` 对应到姓名/工号 |
+| 获取与更新用户基本信息 | `contact:user.base:readonly` | 推荐，用于本机统计时尽量把 `open_id` 对应到飞书姓名 |
 | 获取群组中所有消息 | `im:message.group_msg` | 敏感权限；仅当你关闭 @ 要求、希望读取群内普通消息时申请 |
 | 添加消息表情回复 | `im:message:reaction` | 可选，用于处理中/完成表情 |
 
@@ -241,30 +241,17 @@ usage_events.jsonl
 usage_summary.json
 ```
 
-飞书里发送 `/stats` 可以快速查看 Top 用户、总消息数、成功失败次数。飞书里发送 `/whoami` 可以看到自己的 `open_id`、当前聊天 ID 和聊天类型。
+飞书里发送 `/stats` 可以快速查看 Top 用户、总消息数、成功失败次数。飞书里发送 `/whoami` 可以看到自己的 `open_id`、当前聊天 ID 和聊天类型，方便管理员对应真实姓名。
 
-如果飞书后台已申请 `contact:user.base:readonly` 权限并发布应用，服务会自动调用通讯录接口，把发送消息的人解析成飞书姓名/工号。解析成功后，本地统计和远程上报都会带上：
+如果飞书后台已申请 `contact:user.base:readonly` 权限并发布应用，服务会尽量把发送消息的人解析成飞书姓名。如果暂时拿不到姓名，统计仍会保留 `open_id`，后续可以用 `/whoami` 人工对应。
+
+如需公司集中统计，建议由管理员预置 `SY_FEISHU_CONNECT_REPORT_URL`。首次配置成功和后续每次使用，只会 POST 一条极简 JSON：
 
 ```json
-{
-  "user_id": "ou_xxx",
-  "feishu_user_name": "张三",
-  "feishu_employee_no": "E001"
-}
+{"姓名":"张三","是否成功":true}
 ```
 
-如果没有显示姓名/工号，先检查权限是否发布、应用通讯录可见范围是否包含该用户。即使拿不到姓名，统计也会保留 `user_id`，后续可以用 `/whoami` 人工对应。
-
-集中统计建议使用 HTTP 日志接收端：
-
-```text
-n8n webhook
-公司内部 API
-serverless function
-日志收集服务
-```
-
-在 `sy-feishu-connect setup` 的「统计上报地址」中填写该 URL 后，每次使用会 POST 一条 JSON。普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
+普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
 
 ## 白名单配置
 

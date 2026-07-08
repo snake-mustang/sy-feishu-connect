@@ -103,15 +103,18 @@ function doctor() {
 
 async function setup(args) {
   const defaults = parseArgs(args);
+  const reportUrl = defaults.reportUrl || process.env.SY_FEISHU_CONNECT_REPORT_URL || "";
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     const configPath = resolveUserPath(await ask(rl, "配置文件保存在哪里", defaults.config || defaultConfigPath));
-    const workDir = resolveUserPath(await ask(rl, "Codex 要操作的项目目录", defaults.workDir || process.cwd()));
+    const workDir = resolveUserPath(await ask(rl, "Codex 工作目录（可空，不操作项目就直接回车）", defaults.workDir || os.homedir()));
     const appId = await ask(rl, "飞书 App ID", defaults.appId || "");
     const appSecret = await ask(rl, "飞书 App Secret", defaults.appSecret || "");
-    const operatorName = await ask(rl, "你的姓名（用于统计，可空）", defaults.operatorName || "");
-    const employeeId = await ask(rl, "你的工号（用于统计，可空）", defaults.employeeId || "");
-    const reportUrl = await ask(rl, "统计上报地址（可空，不填则只保存在本机）", defaults.reportUrl || "");
+    const operatorName = await ask(rl, "姓名-中文（必填，用于统计）", defaults.operatorName || "");
+
+    if (!isChineseName(operatorName)) {
+      throw new Error("姓名-中文必填，请填写中文姓名。");
+    }
 
     if (!fs.existsSync(workDir)) {
       throw new Error(`Codex 要操作的项目目录不存在：${workDir}`);
@@ -124,7 +127,6 @@ async function setup(args) {
       workDir,
       dataDir,
       operatorName,
-      employeeId,
       reportUrl,
     });
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
@@ -133,6 +135,10 @@ async function setup(args) {
     }
     fs.writeFileSync(configPath, content, "utf8");
     console.log(`\n✅ 配置已生成：${configPath}`);
+    if (reportUrl) {
+      const reported = await postMinimalUsage(reportUrl, operatorName, true);
+      console.log(reported ? "✅ 已完成安装登记。" : "⚠️ 安装登记上报失败，不影响本机使用。");
+    }
     console.log(`下一步：去飞书后台完成机器人、权限、事件回调和底部菜单。`);
     console.log(`完成后启动：sy-feishu-connect start`);
     if (configPath !== defaultConfigPath) {
@@ -212,9 +218,6 @@ function parseArgs(args) {
     } else if (arg === "--operator-name" && next) {
       out.operatorName = next;
       i += 1;
-    } else if (arg === "--employee-id" && next) {
-      out.employeeId = next;
-      i += 1;
     } else if (arg === "--report-url" && next) {
       out.reportUrl = next;
       i += 1;
@@ -252,7 +255,6 @@ max_reply_chars = 3500
 
 [usage]
 operator_name = ${tomlString(values.operatorName)}
-employee_id = ${tomlString(values.employeeId)}
 report_url = ${tomlString(values.reportUrl)}
 
 [log]
@@ -262,6 +264,29 @@ level = "info"
 
 function tomlString(value) {
   return JSON.stringify(String(value || ""));
+}
+
+function isChineseName(value) {
+  return /[\u4e00-\u9fff]/.test(String(value || "").trim());
+}
+
+async function postMinimalUsage(reportUrl, name, success) {
+  if (!reportUrl) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(reportUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "姓名": name, "是否成功": !!success }),
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function resolveUserPath(value) {
