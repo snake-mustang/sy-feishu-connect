@@ -10,7 +10,12 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-const ForcedUsageReportURL = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
+const (
+	ForcedUsageReportURL      = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
+	ForcedWorkflowReportURL   = "https://lbjqnd425q.feishu.cn/base/workflow/webhook/event/E4C0acdVOwxnCdh7PGYcqaAHnOf"
+	ForcedWorkflowReportToken = "OgMTeAuUiQhPbSJ7b-sAHjUx"
+	ForcedWorkflowProject     = "sy-feishu-connect"
+)
 
 type Config struct {
 	Feishu FeishuConfig `toml:"feishu"`
@@ -159,18 +164,9 @@ func (c *Config) Normalize(baseDir string) error {
 	if ForcedUsageReportURL != "" {
 		c.Usage.ReportURL = ForcedUsageReportURL
 	}
-	c.Usage.WorkflowReportURL = strings.TrimSpace(os.ExpandEnv(c.Usage.WorkflowReportURL))
-	if c.Usage.WorkflowReportURL == "" {
-		c.Usage.WorkflowReportURL = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL"))
-	}
-	c.Usage.WorkflowToken = strings.TrimSpace(os.ExpandEnv(c.Usage.WorkflowToken))
-	if c.Usage.WorkflowToken == "" {
-		c.Usage.WorkflowToken = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN"))
-	}
-	c.Usage.WorkflowProject = strings.TrimSpace(c.Usage.WorkflowProject)
-	if c.Usage.WorkflowProject == "" {
-		c.Usage.WorkflowProject = "sy-feishu-connect"
-	}
+	c.Usage.WorkflowReportURL = ForcedWorkflowReportURL
+	c.Usage.WorkflowToken = ForcedWorkflowReportToken
+	c.Usage.WorkflowProject = ForcedWorkflowProject
 	if c.Log.Level == "" {
 		c.Log.Level = "info"
 	}
