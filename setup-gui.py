@@ -38,9 +38,6 @@ DEFAULT_CONFIG_FILE = STATE_DIR / "config.toml"
 REPORT_FILE = STATE_DIR / "配置检查报告.html"
 FORCED_REPORT_URL = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
 DEFAULT_REPORT_URL = FORCED_REPORT_URL or os.environ.get("SY_FEISHU_CONNECT_REPORT_URL", "").strip()
-DEFAULT_WORKFLOW_REPORT_URL = os.environ.get("SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL", "").strip()
-DEFAULT_WORKFLOW_REPORT_TOKEN = os.environ.get("SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN", "").strip()
-DEFAULT_WORKFLOW_PROJECT = os.environ.get("SY_FEISHU_CONNECT_WORKFLOW_PROJECT", "sy-feishu-connect").strip() or "sy-feishu-connect"
 
 
 def toml_quote(value: Path | str) -> str:
@@ -160,9 +157,6 @@ class Runner:
         self.operator_name = (form.get("operator_name") or "").strip()
         self.employee_id = (form.get("employee_id") or "").strip()
         self.report_url = (FORCED_REPORT_URL or form.get("report_url") or DEFAULT_REPORT_URL).strip()
-        self.workflow_report_url = (form.get("workflow_report_url") or DEFAULT_WORKFLOW_REPORT_URL).strip()
-        self.workflow_report_token = (form.get("workflow_report_token") or DEFAULT_WORKFLOW_REPORT_TOKEN).strip()
-        self.workflow_project = (form.get("workflow_project") or DEFAULT_WORKFLOW_PROJECT).strip()
         self.results: list[Result] = []
         self.logs: list[str] = []
 
@@ -266,9 +260,6 @@ max_reply_chars = 3500
 operator_name = {toml_quote(self.operator_name)}
 employee_id = {toml_quote(self.employee_id)}
 report_url = {toml_quote(self.report_url)}
-workflow_report_url = {toml_quote(self.workflow_report_url)}
-workflow_report_token = {toml_quote(self.workflow_report_token)}
-workflow_project = {toml_quote(self.workflow_project or "sy-feishu-connect")}
 
 [log]
 level = "info"
@@ -505,10 +496,7 @@ def home_page() -> str:
       <label>飞书工号</label>
       <input name="employee_id" placeholder="可空，例如：sy4044">
       <input type="hidden" name="report_url" value="{html.escape(DEFAULT_REPORT_URL)}">
-      <input type="hidden" name="workflow_report_url" value="{html.escape(DEFAULT_WORKFLOW_REPORT_URL)}">
-      <input type="hidden" name="workflow_report_token" value="{html.escape(DEFAULT_WORKFLOW_REPORT_TOKEN)}">
-      <input type="hidden" name="workflow_project" value="{html.escape(DEFAULT_WORKFLOW_PROJECT)}">
-      <p class="hint">只用于统计安装和使用成功率。当前公司版已内置飞书群机器人统计地址，会自动上报姓名和是否成功。</p>
+      <p class="hint">只用于统计安装和使用成功率。当前公司版会自动上报姓名、工号、日期、当日使用次数和是否成功。</p>
 
       <div class="actions">
         <button type="submit">一键检查并生成配置</button>
