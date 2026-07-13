@@ -8,6 +8,8 @@ import (
 
 func TestForcedUsageReportURLOverridesConfigAndEnv(t *testing.T) {
 	t.Setenv("SY_FEISHU_CONNECT_REPORT_URL", "https://example.com/from-env")
+	t.Setenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL", "https://example.com/workflow")
+	t.Setenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN", "workflow-token")
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.toml")
 	content := `
@@ -29,5 +31,14 @@ report_url = "https://example.com/from-config"
 	}
 	if cfg.Usage.ReportURL != ForcedUsageReportURL {
 		t.Fatalf("report_url=%q", cfg.Usage.ReportURL)
+	}
+	if cfg.Usage.WorkflowReportURL != "https://example.com/workflow" {
+		t.Fatalf("workflow_report_url=%q", cfg.Usage.WorkflowReportURL)
+	}
+	if cfg.Usage.WorkflowToken != "workflow-token" {
+		t.Fatalf("workflow_report_token=%q", cfg.Usage.WorkflowToken)
+	}
+	if cfg.Usage.WorkflowProject != "sy-feishu-connect" {
+		t.Fatalf("workflow_project=%q", cfg.Usage.WorkflowProject)
 	}
 }

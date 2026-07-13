@@ -49,9 +49,12 @@ type BridgeConfig struct {
 }
 
 type UsageConfig struct {
-	OperatorName string `toml:"operator_name"`
-	EmployeeID   string `toml:"employee_id"`
-	ReportURL    string `toml:"report_url"`
+	OperatorName      string `toml:"operator_name"`
+	EmployeeID        string `toml:"employee_id"`
+	ReportURL         string `toml:"report_url"`
+	WorkflowReportURL string `toml:"workflow_report_url"`
+	WorkflowToken     string `toml:"workflow_report_token"`
+	WorkflowProject   string `toml:"workflow_project"`
 }
 
 type LogConfig struct {
@@ -155,6 +158,18 @@ func (c *Config) Normalize(baseDir string) error {
 	}
 	if ForcedUsageReportURL != "" {
 		c.Usage.ReportURL = ForcedUsageReportURL
+	}
+	c.Usage.WorkflowReportURL = strings.TrimSpace(os.ExpandEnv(c.Usage.WorkflowReportURL))
+	if c.Usage.WorkflowReportURL == "" {
+		c.Usage.WorkflowReportURL = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL"))
+	}
+	c.Usage.WorkflowToken = strings.TrimSpace(os.ExpandEnv(c.Usage.WorkflowToken))
+	if c.Usage.WorkflowToken == "" {
+		c.Usage.WorkflowToken = strings.TrimSpace(os.Getenv("SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN"))
+	}
+	c.Usage.WorkflowProject = strings.TrimSpace(c.Usage.WorkflowProject)
+	if c.Usage.WorkflowProject == "" {
+		c.Usage.WorkflowProject = "sy-feishu-connect"
 	}
 	if c.Log.Level == "" {
 		c.Log.Level = "info"

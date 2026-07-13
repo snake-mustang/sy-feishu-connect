@@ -24,9 +24,12 @@ type UsageTracker struct {
 }
 
 type UsageOptions struct {
-	OperatorName string
-	EmployeeID   string
-	ReportURL    string
+	OperatorName      string
+	EmployeeID        string
+	ReportURL         string
+	WorkflowReportURL string
+	WorkflowToken     string
+	WorkflowProject   string
 }
 
 type UsageEvent struct {
@@ -54,12 +57,21 @@ type RemoteUsageEvent struct {
 	Success bool   `json:"是否成功"`
 }
 
+type WorkflowUsageEvent struct {
+	UserName    string `json:"用户姓名"`
+	EmployeeNo  string `json:"飞书工号"`
+	Date        string `json:"日期"`
+	DailyCount  int    `json:"当日使用次数"`
+	ProjectName string `json:"项目"`
+}
+
 type UsageSummary struct {
-	UpdatedAt time.Time                `json:"updated_at"`
-	Total     UsageCounter             `json:"total"`
-	Users     map[string]*UsageCounter `json:"users"`
-	Chats     map[string]*UsageCounter `json:"chats"`
-	Commands  map[string]int           `json:"commands"`
+	UpdatedAt  time.Time                `json:"updated_at"`
+	Total      UsageCounter             `json:"total"`
+	Users      map[string]*UsageCounter `json:"users"`
+	Chats      map[string]*UsageCounter `json:"chats"`
+	DailyUsers map[string]*UsageCounter `json:"daily_users,omitempty"`
+	Commands   map[string]int           `json:"commands"`
 }
 
 type UsageCounter struct {
@@ -85,9 +97,10 @@ func OpenUsageTracker(dataDir string, opts UsageOptions) (*UsageTracker, error) 
 		eventsPath:  filepath.Join(dataDir, "usage_events.jsonl"),
 		summaryPath: filepath.Join(dataDir, "usage_summary.json"),
 		summary: UsageSummary{
-			Users:    map[string]*UsageCounter{},
-			Chats:    map[string]*UsageCounter{},
-			Commands: map[string]int{},
+			Users:      map[string]*UsageCounter{},
+			Chats:      map[string]*UsageCounter{},
+			DailyUsers: map[string]*UsageCounter{},
+			Commands:   map[string]int{},
 		},
 		opts:   sanitizeUsageOptions(opts),
 		client: &http.Client{Timeout: 5 * time.Second},
@@ -150,10 +163,17 @@ func (t *UsageTracker) Record(event UsageEvent) error {
 	if event.Command != "" {
 		t.summary.Commands[event.Command]++
 	}
+	date := event.Time.In(time.Local).Format("2006-01-02")
+	dailyCount := 0
+	if dailyKey := dailyUsageKey(event, date); dailyKey != "" {
+		daily := counterFor(t.summary.DailyUsers, dailyKey)
+		applyUsage(daily, event, dailyKey)
+		dailyCount = daily.Total
+	}
 	if err := t.saveSummaryLocked(); err != nil {
 		return err
 	}
-	t.reportAsync(event)
+	t.reportAsync(event, date, dailyCount)
 	return nil
 }
 
@@ -195,39 +215,75 @@ func (t *UsageTracker) Report(limit int) string {
 	} else {
 		b.WriteString("远程上报: 未配置\n")
 	}
+	if t.opts.WorkflowReportURL != "" {
+		b.WriteString("飞书表格统计: 已启用（上报姓名、工号、日期、当日次数、项目）\n")
+	}
 	b.WriteString("\n提示：如果已开通 contact:user.base:readonly 权限，统计会尽量显示飞书姓名；否则会保留 open_id，后续也能人工对应真实姓名。")
 	return b.String()
 }
 
-func (t *UsageTracker) reportAsync(event UsageEvent) {
-	if t.opts.ReportURL == "" {
-		return
+func (t *UsageTracker) reportAsync(event UsageEvent, date string, dailyCount int) {
+	var requests []usageReportRequest
+	if t.opts.ReportURL != "" {
+		remoteEvent := RemoteUsageEvent{
+			Name:    remoteUsageName(t.opts, event),
+			Success: event.Success,
+		}
+		payload, err := marshalRemoteUsagePayload(t.opts.ReportURL, remoteEvent)
+		if err == nil {
+			requests = append(requests, usageReportRequest{
+				URL:     t.opts.ReportURL,
+				Payload: payload,
+			})
+		}
 	}
-	remoteEvent := RemoteUsageEvent{
-		Name:    remoteUsageName(t.opts, event),
-		Success: event.Success,
+	if t.opts.WorkflowReportURL != "" {
+		payload, err := json.Marshal(WorkflowUsageEvent{
+			UserName:    workflowUsageName(t.opts, event),
+			EmployeeNo:  workflowEmployeeNo(t.opts, event),
+			Date:        date,
+			DailyCount:  dailyCount,
+			ProjectName: fallbackUsageName(t.opts.WorkflowProject),
+		})
+		if err == nil {
+			requests = append(requests, usageReportRequest{
+				URL:         t.opts.WorkflowReportURL,
+				BearerToken: t.opts.WorkflowToken,
+				Payload:     payload,
+			})
+		}
 	}
-	payload, err := marshalRemoteUsagePayload(t.opts.ReportURL, remoteEvent)
-	if err != nil {
+	if len(requests) == 0 {
 		return
 	}
 	go func() {
-		req, err := http.NewRequest(http.MethodPost, t.opts.ReportURL, bytes.NewReader(payload))
-		if err != nil {
-			slog.Warn("usage: build report request failed", "error", err)
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := t.client.Do(req)
-		if err != nil {
-			slog.Warn("usage: report failed", "error", err)
-			return
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			slog.Warn("usage: report rejected", "status", resp.Status)
+		for _, item := range requests {
+			req, err := http.NewRequest(http.MethodPost, item.URL, bytes.NewReader(item.Payload))
+			if err != nil {
+				slog.Warn("usage: build report request failed", "error", err)
+				continue
+			}
+			req.Header.Set("Content-Type", "application/json")
+			if item.BearerToken != "" {
+				req.Header.Set("Authorization", "Bearer "+item.BearerToken)
+			}
+			resp, err := t.client.Do(req)
+			if err != nil {
+				slog.Warn("usage: report failed", "error", err)
+				continue
+			}
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				slog.Warn("usage: report rejected", "status", resp.Status)
+			}
+			_ = resp.Body.Close()
 		}
 	}()
+}
+
+type usageReportRequest struct {
+	URL         string
+	BearerToken string
+	Payload     []byte
 }
 
 func marshalRemoteUsagePayload(reportURL string, event RemoteUsageEvent) ([]byte, error) {
@@ -276,10 +332,57 @@ func remoteUsageName(opts UsageOptions, event UsageEvent) string {
 	return ""
 }
 
+func workflowUsageName(opts UsageOptions, event UsageEvent) string {
+	for _, value := range []string{
+		event.FeishuUserName,
+		event.OperatorName,
+		opts.OperatorName,
+		event.UserID,
+	} {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return "未知"
+}
+
+func workflowEmployeeNo(opts UsageOptions, event UsageEvent) string {
+	for _, value := range []string{
+		event.FeishuEmployeeNo,
+		event.EmployeeID,
+		opts.EmployeeID,
+	} {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func dailyUsageKey(event UsageEvent, date string) string {
+	identity := workflowEmployeeNo(UsageOptions{}, event)
+	if identity == "" {
+		identity = strings.TrimSpace(event.UserID)
+	}
+	if identity == "" {
+		identity = workflowUsageName(UsageOptions{}, event)
+	}
+	if identity == "" {
+		return ""
+	}
+	return date + "|" + identity
+}
+
 func sanitizeUsageOptions(opts UsageOptions) UsageOptions {
 	opts.OperatorName = strings.TrimSpace(opts.OperatorName)
 	opts.EmployeeID = strings.TrimSpace(opts.EmployeeID)
 	opts.ReportURL = strings.TrimSpace(opts.ReportURL)
+	opts.WorkflowReportURL = strings.TrimSpace(opts.WorkflowReportURL)
+	opts.WorkflowToken = strings.TrimSpace(opts.WorkflowToken)
+	opts.WorkflowProject = strings.TrimSpace(opts.WorkflowProject)
+	if opts.WorkflowProject == "" {
+		opts.WorkflowProject = "sy-feishu-connect"
+	}
 	return opts
 }
 
@@ -289,6 +392,9 @@ func (t *UsageTracker) ensureMaps() {
 	}
 	if t.summary.Chats == nil {
 		t.summary.Chats = map[string]*UsageCounter{}
+	}
+	if t.summary.DailyUsers == nil {
+		t.summary.DailyUsers = map[string]*UsageCounter{}
 	}
 	if t.summary.Commands == nil {
 		t.summary.Commands = map[string]int{}

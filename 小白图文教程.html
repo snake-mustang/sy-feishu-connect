@@ -399,6 +399,7 @@
             <div class="terminal-row"><strong>2</strong><div><b>Codex 工作目录</b><br>可以不填，直接回车会使用用户目录；如果要操作某个项目，再填项目路径。</div></div>
             <div class="terminal-row"><strong>3</strong><div><b><a href="https://open.feishu.cn/app" target="_blank" rel="noopener noreferrer">App ID / App Secret</a></b><br>点这里进入飞书开发者后台，在你的应用里打开「凭据与基础信息」复制。</div></div>
             <div class="terminal-row"><strong>4</strong><div><b>姓名-中文</b><br>必填，例如 <code>张三</code>。只用于统计安装和使用成功率。</div></div>
+            <div class="terminal-row"><strong>5</strong><div><b>飞书工号</b><br>可空，例如 <code>sy4044</code>。填写后多维表格统计会更容易按人汇总。</div></div>
           </div>
           <p>配置会保存到 <code>~/.sy-feishu-connect/config.toml</code>。App ID 和 App Secret 会写进 <code>[feishu]</code> 这一段：</p>
           <pre><code>[feishu]
@@ -540,6 +541,7 @@ show_raw_agent_reasoning = true</code></pre>
 /whoami</code></pre>
             <p><code>/stats</code> 可以看总次数、成功失败、用户 Top。<code>/whoami</code> 可以看到自己的飞书用户标识，方便管理员对应真实姓名。</p>
             <p>当前公司版已强制内置飞书群机器人统计 Webhook。用户完成配置和后续每次使用后，群里会收到“姓名”和“是否成功”。</p>
+            <p>如果配置了 <code>SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL</code> 和 <code>SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN</code>，每次使用还会同步一条到飞书多维表格/流程 Webhook：用户姓名、飞书工号、日期、当日使用次数、项目。</p>
             <p>该统计链路已验证可以成功接收。旧版本用户需要先重新安装，再运行 <code>sy-feishu-connect doctor</code> 更新核心程序。</p>
             <p>GitHub 安装链接本身不会告诉你是谁安装了；真正统计发生在用户运行配置工具和后续使用时。公开分发前，需要先替换或移除内置 Webhook。</p>
           </div>

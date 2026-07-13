@@ -85,9 +85,12 @@ func run() error {
 			CodexHome:       cfg.Codex.CodexHome,
 		},
 		Usage: bridge.UsageOptions{
-			OperatorName: cfg.Usage.OperatorName,
-			EmployeeID:   cfg.Usage.EmployeeID,
-			ReportURL:    cfg.Usage.ReportURL,
+			OperatorName:      cfg.Usage.OperatorName,
+			EmployeeID:        cfg.Usage.EmployeeID,
+			ReportURL:         cfg.Usage.ReportURL,
+			WorkflowReportURL: cfg.Usage.WorkflowReportURL,
+			WorkflowToken:     cfg.Usage.WorkflowToken,
+			WorkflowProject:   cfg.Usage.WorkflowProject,
 		},
 	})
 	if err != nil {

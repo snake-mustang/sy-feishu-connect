@@ -64,10 +64,19 @@ max_reply_chars = 3500
 [usage]
 # Required for company usage counting. Keep it Chinese and human-readable.
 operator_name = ""
+employee_id = ""
 
 # Company usage reporting is forced in this build. Runtime will override this
 # value with the built-in Feishu custom bot webhook.
 report_url = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191"
+
+# Optional Feishu Base / workflow webhook for structured usage counting.
+# Prefer environment variables so secrets are not committed:
+# SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL
+# SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN
+workflow_report_url = "${SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL}"
+workflow_report_token = "${SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN}"
+workflow_project = "sy-feishu-connect"
 
 [log]
 level = "info"

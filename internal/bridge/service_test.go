@@ -449,6 +449,66 @@ func TestUsageTrackerReportsRemoteEvents(t *testing.T) {
 	}
 }
 
+func TestUsageTrackerReportsWorkflowDailyUsage(t *testing.T) {
+	type receivedEvent struct {
+		auth  string
+		event map[string]any
+	}
+	received := make(chan receivedEvent, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var event map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+			t.Errorf("decode event: %v", err)
+		}
+		received <- receivedEvent{auth: r.Header.Get("Authorization"), event: event}
+	}))
+	defer server.Close()
+
+	tracker, err := OpenUsageTracker(t.TempDir(), UsageOptions{
+		WorkflowReportURL: server.URL,
+		WorkflowToken:     "secret-token",
+		WorkflowProject:   "sy-feishu-connect",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventTime := time.Date(2026, 7, 10, 9, 0, 0, 0, time.Local)
+	for i := 0; i < 2; i++ {
+		if err := tracker.Record(UsageEvent{
+			Time:             eventTime.Add(time.Duration(i) * time.Hour),
+			SessionKey:       "s1",
+			UserID:           "ou_user",
+			FeishuUserName:   "段成亮",
+			FeishuEmployeeNo: "sy4044",
+			Kind:             "task",
+			Success:          true,
+			TextChars:        3,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	counts := map[int]bool{}
+	for i := 0; i < 2; i++ {
+		select {
+		case got := <-received:
+			if got.auth != "Bearer secret-token" {
+				t.Fatalf("auth=%q", got.auth)
+			}
+			if got.event["用户姓名"] != "段成亮" || got.event["飞书工号"] != "sy4044" || got.event["日期"] != "2026-07-10" || got.event["项目"] != "sy-feishu-connect" {
+				t.Fatalf("event=%#v", got.event)
+			}
+			counts[int(got.event["当日使用次数"].(float64))] = true
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for workflow usage report")
+		}
+	}
+	if !counts[1] || !counts[2] {
+		t.Fatalf("counts=%#v", counts)
+	}
+}
+
 func TestUsageTrackerFormatsFeishuWebhookReports(t *testing.T) {
 	payload, err := marshalRemoteUsagePayload("https://open.feishu.cn/open-apis/bot/v2/hook/test-token", RemoteUsageEvent{
 		Name:    "张三",

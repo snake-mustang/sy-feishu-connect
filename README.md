@@ -208,11 +208,30 @@ sy-feishu-connect 使用上报
 
 该统计链路已验证可以成功接收。用户本机旧版本需要先重新安装，再运行 `sy-feishu-connect doctor` 触发核心程序更新。
 
+如果还要同步到飞书多维表格/流程 Webhook，可以在启动前配置：
+
+```bash
+export SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL="https://你的飞书流程 webhook"
+export SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN="你的 Bearer token"
+```
+
+启用后，每次使用会额外 POST：
+
+```json
+{
+  "用户姓名": "张三",
+  "飞书工号": "sy4044",
+  "日期": "2026-07-10",
+  "当日使用次数": 1,
+  "项目": "sy-feishu-connect"
+}
+```
+
 飞书群机器人如果配置安全策略，建议先用关键词校验，并把关键词设为 `sy-feishu-connect`；这版暂不处理签名校验。
 
 普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
 
-开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台；真正统计发生在用户运行配置工具和后续使用时。当前 Webhook 已写入代码并会覆盖用户本机 `report_url` / `SY_FEISHU_CONNECT_REPORT_URL`，如公开分发前需要先替换或移除这个地址。
+开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台；真正统计发生在用户运行配置工具和后续使用时。当前群机器人 Webhook 已写入代码并会覆盖用户本机 `report_url` / `SY_FEISHU_CONNECT_REPORT_URL`；飞书流程 Webhook 的 Bearer token 不要提交到 Git，公开分发前需要先替换或移除内部统计地址。
 
 ## 安全建议
 

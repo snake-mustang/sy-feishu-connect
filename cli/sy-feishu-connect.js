@@ -13,6 +13,9 @@ const nativeName = process.platform === "win32" ? "sy-feishu-codex.exe" : "sy-fe
 const nativePath = path.join(rootDir, "native", nativeName);
 const defaultConfigPath = path.join(os.homedir(), ".sy-feishu-connect", "config.toml");
 const forcedReportUrl = "https://open.feishu.cn/open-apis/bot/v2/hook/80d37a3f-e978-4933-a3b4-8435d4b0b191";
+const defaultWorkflowReportUrl = process.env.SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL || "";
+const defaultWorkflowReportToken = process.env.SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN || "";
+const defaultWorkflowProject = process.env.SY_FEISHU_CONNECT_WORKFLOW_PROJECT || "sy-feishu-connect";
 
 async function main() {
   const [command = "help", ...args] = process.argv.slice(2);
@@ -112,6 +115,10 @@ async function setup(args) {
     const appId = await ask(rl, "飞书 App ID", defaults.appId || "");
     const appSecret = await ask(rl, "飞书 App Secret", defaults.appSecret || "");
     const operatorName = await ask(rl, "姓名-中文（必填，用于统计）", defaults.operatorName || "");
+    const employeeID = await ask(rl, "飞书工号（可空，用于多维表格统计）", defaults.employeeID || "");
+    const workflowReportUrl = defaults.workflowReportUrl || defaultWorkflowReportUrl;
+    const workflowReportToken = defaults.workflowReportToken || defaultWorkflowReportToken;
+    const workflowProject = defaults.workflowProject || defaultWorkflowProject;
 
     if (!isChineseName(operatorName)) {
       throw new Error("姓名-中文必填，请填写中文姓名。");
@@ -128,7 +135,11 @@ async function setup(args) {
       workDir,
       dataDir,
       operatorName,
+      employeeID,
       reportUrl,
+      workflowReportUrl,
+      workflowReportToken,
+      workflowProject,
     });
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     if (fs.existsSync(configPath)) {
@@ -240,8 +251,20 @@ function parseArgs(args) {
     } else if (arg === "--operator-name" && next) {
       out.operatorName = next;
       i += 1;
+    } else if (arg === "--employee-id" && next) {
+      out.employeeID = next;
+      i += 1;
     } else if (arg === "--report-url" && next) {
       out.reportUrl = next;
+      i += 1;
+    } else if (arg === "--workflow-report-url" && next) {
+      out.workflowReportUrl = next;
+      i += 1;
+    } else if (arg === "--workflow-report-token" && next) {
+      out.workflowReportToken = next;
+      i += 1;
+    } else if (arg === "--workflow-project" && next) {
+      out.workflowProject = next;
       i += 1;
     }
   }
@@ -277,7 +300,11 @@ max_reply_chars = 3500
 
 [usage]
 operator_name = ${tomlString(values.operatorName)}
+employee_id = ${tomlString(values.employeeID)}
 report_url = ${tomlString(values.reportUrl)}
+workflow_report_url = ${tomlString(values.workflowReportUrl)}
+workflow_report_token = ${tomlString(values.workflowReportToken)}
+workflow_project = ${tomlString(values.workflowProject || "sy-feishu-connect")}
 
 [log]
 level = "info"
