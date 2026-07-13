@@ -351,7 +351,7 @@
         </div>
       </div>
       <div class="hero-cards">
-        <div class="hero-card"><b>1. 安装</b><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz</code></div>
+        <div class="hero-card"><b>1. 安装</b><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</code></div>
         <div class="hero-card"><b>2. 检查配置与启动</b><code>sy-feishu-connect doctor</code><br><code>sy-feishu-connect setup</code><br><code>sy-feishu-connect start</code></div>
         <div class="hero-card"><b>3. 飞书后台配置</b>机器人、权限、事件、菜单、发布</div>
       </div>
@@ -375,8 +375,14 @@
         <section id="install">
           <h2>1. 先装好工具</h2>
           <p>打开终端，复制下面这一行，按回车。</p>
-          <pre><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz</code></pre>
+          <pre><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</code></pre>
           <div class="callout warn">如果提示没有 <code>npm</code>，先安装 Node.js。管理员发布 npm 包之前，本地测试可以在仓库目录运行 <code>npm link</code>。</div>
+          <h3>已经安装过？这样更新</h3>
+          <p>先在旧机器人窗口按 <code>Ctrl+C</code> 停止运行，再依次执行：</p>
+          <pre><code>npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
+sy-feishu-connect doctor
+sy-feishu-connect start</code></pre>
+          <div class="callout ok">原来的 <code>~/.sy-feishu-connect/config.toml</code> 会继续保留，App ID、App Secret、中文姓名和飞书工号都不用重新填写，也不要再次运行 <code>setup</code>。</div>
         </section>
 
         <section id="doctor">
@@ -541,9 +547,10 @@ show_raw_agent_reasoning = true</code></pre>
 /whoami</code></pre>
             <p><code>/stats</code> 可以看总次数、成功失败、用户 Top。<code>/whoami</code> 可以看到自己的飞书用户标识，方便管理员对应真实姓名。</p>
             <p>当前公司版已强制内置飞书群机器人统计 Webhook。用户完成配置和后续每次使用后，群里会收到“姓名”和“是否成功”。</p>
-            <p>如果配置了 <code>SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL</code> 和 <code>SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN</code>，每次使用还会同步一条到飞书多维表格/流程 Webhook：用户姓名、飞书工号、日期、当日使用次数、项目。</p>
-            <p>该统计链路已验证可以成功接收。旧版本用户需要先重新安装，再运行 <code>sy-feishu-connect doctor</code> 更新核心程序。</p>
-            <p>GitHub 安装链接本身不会告诉你是谁安装了；真正统计发生在用户运行配置工具和后续使用时。公开分发前，需要先替换或移除内置 Webhook。</p>
+            <p>飞书多维表格/流程统计也已经内置，不用填写 URL 或 Token。每次任务或命令都会自动上报：</p>
+            <pre><code>用户姓名、飞书工号、日期、当日使用次数、项目</code></pre>
+            <p>远程上报失败不会阻断 Codex，本机统计仍会正常保存。</p>
+            <p>GitHub 安装链接本身不会告诉你是谁下载了；真正统计发生在用户完成首次配置和后续使用时。</p>
           </div>
         </section>
 
@@ -616,7 +623,7 @@ show_raw_agent_reasoning = true</code></pre>
         <section id="final-check">
           <h2>12. 最后检查清单</h2>
           <div class="checklist">
-            <div class="check">已执行 npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz</div>
+            <div class="check">已执行 npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz</div>
             <div class="check">doctor 三项都是通过</div>
             <div class="check">setup 已生成配置</div>
             <div class="check">飞书应用已启用机器人</div>

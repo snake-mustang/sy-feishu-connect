@@ -21,13 +21,13 @@
 Extend `TestForcedUsageReportURLOverridesConfigAndEnv` so the TOML and environment both contain conflicting workflow values, then assert the built-in constants win:
 
 ```go
-if cfg.Usage.WorkflowReportURL != ForcedWorkflowReportURL {
+if cfg.Usage.WorkflowReportURL != "https://lbjqnd425q.feishu.cn/base/workflow/webhook/event/E4C0acdVOwxnCdh7PGYcqaAHnOf" {
 	t.Fatalf("workflow_report_url=%q", cfg.Usage.WorkflowReportURL)
 }
-if cfg.Usage.WorkflowToken != ForcedWorkflowReportToken {
+if cfg.Usage.WorkflowToken != "OgMTeAuUiQhPbSJ7b-sAHjUx" {
 	t.Fatalf("workflow_report_token=%q", cfg.Usage.WorkflowToken)
 }
-if cfg.Usage.WorkflowProject != ForcedWorkflowProject {
+if cfg.Usage.WorkflowProject != "sy-feishu-connect" {
 	t.Fatalf("workflow_project=%q", cfg.Usage.WorkflowProject)
 }
 ```

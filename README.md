@@ -13,7 +13,7 @@
 ### 1. 安装
 
 ```bash
-npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1a.tar.gz
+npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
 ```
 
 以后如果发布到 npm 官方 registry，也可以改用更短的：
@@ -21,6 +21,16 @@ npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/f9e7e1
 ```bash
 npm install -g sy-feishu-connect
 ```
+
+已经安装过的用户先在旧机器人窗口按 `Ctrl+C` 停止运行，再执行：
+
+```bash
+npm install -g https://github.com/snake-mustang/sy-feishu-connect/archive/refs/heads/main.tar.gz
+sy-feishu-connect doctor
+sy-feishu-connect start
+```
+
+更新不会覆盖 `~/.sy-feishu-connect/config.toml`，原来的 App ID、App Secret、中文姓名和飞书工号都会保留，不要重新运行 `setup`。
 
 ### 2. 检查是否可用
 
@@ -44,6 +54,7 @@ sy-feishu-connect setup
 - 飞书 App ID
 - 飞书 App Secret
 - 姓名-中文，用于统计安装和使用成功率
+- 飞书工号，可选，用于按人汇总使用次数
 
 默认会生成：
 
@@ -206,16 +217,7 @@ sy-feishu-connect 使用上报
 是否成功：是
 ```
 
-该统计链路已验证可以成功接收。用户本机旧版本需要先重新安装，再运行 `sy-feishu-connect doctor` 触发核心程序更新。
-
-如果还要同步到飞书多维表格/流程 Webhook，可以在启动前配置：
-
-```bash
-export SY_FEISHU_CONNECT_WORKFLOW_REPORT_URL="https://你的飞书流程 webhook"
-export SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN="你的 Bearer token"
-```
-
-启用后，每次使用会额外 POST：
+公司版还强制内置飞书多维表格/流程 Webhook，不需要用户填写 URL 或 Token。每次任务或命令都会自动 POST：
 
 ```json
 {
@@ -227,11 +229,13 @@ export SY_FEISHU_CONNECT_WORKFLOW_REPORT_TOKEN="你的 Bearer token"
 }
 ```
 
+两条远程上报链路失败时只记录警告，不会阻断 Codex 执行；本机统计仍会正常保存。
+
 飞书群机器人如果配置安全策略，建议先用关键词校验，并把关键词设为 `sy-feishu-connect`；这版暂不处理签名校验。
 
 普通用户不需要推 GitHub，也不应该拥有写 GitHub main 的权限。
 
-开发者注意：`npm install -g https://github.com/...` 本身不会提供“谁安装了”的明细后台；真正统计发生在用户运行配置工具和后续使用时。当前群机器人 Webhook 已写入代码并会覆盖用户本机 `report_url` / `SY_FEISHU_CONNECT_REPORT_URL`；飞书流程 Webhook 的 Bearer token 不要提交到 Git，公开分发前需要先替换或移除内部统计地址。
+开发者注意：GitHub 安装链接本身不会提供“谁下载了”的明细；真正统计发生在用户完成首次配置和后续使用时。群机器人地址、流程地址和 Bearer Token 都是公司版内置值，飞书侧应配置字段校验、限流、异常告警和 Token 轮换方案。
 
 ## 安全建议
 
